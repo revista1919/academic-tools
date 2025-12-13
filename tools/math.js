@@ -543,12 +543,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 type: 'MATH',
                 protocol: 'WEBSOCKET',
                 server: {
-    scheme: 'https',
-    host: 'cloud.myscript.com',
-    applicationKey: '75728c88-1557-4fc6-a309-ebebf286c710',
-    hmacKey: 'ee706c42-6fb5-4333-88b7-abfcbe30c2aa'
-}
-
+                    scheme: 'https',
+                    host: 'cloud.myscript.com',
+                    applicationKey: '75728c88-1557-4fc6-a309-ebebf286c710',
+                    hmacKey: 'ee706c42-6fb5-4333-88b7-abfcbe30c2aa'
+                }
             }
         });
 
