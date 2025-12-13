@@ -1,0 +1,53 @@
+<!-- text-tools.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Herramientas de Texto Académico Gratuitas - Academic Tools</title>
+    <meta name="description" content="Herramientas de texto académico gratuitas: contador de palabras, limpieza de texto desde PDF, corrección de saltos de línea, conversión a LaTeX y render visual. Procesado localmente.">
+    <meta name="keywords" content="contador de palabras académico, limpieza de texto pdf, conversión texto latex, herramientas para papers, herramientas académicas gratis">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <img src="assets/logoP.png" alt="Academic Tools Logo" class="logo">
+        <h1>Herramientas de Texto Académico Gratuitas</h1>
+        <nav>
+            <ul>
+                <li><a href="index.html">Inicio</a></li>
+                <li><a href="references.html">Referencias</a></li>
+                <li><a href="pdf-tools.html">PDFs</a></li>
+                <li><a href="math.html">Matemáticas</a></li>
+                <li><a href="review.html">Revisión</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section>
+            <h2>Contador Avanzado</h2>
+            <p>Cuenta palabras, caracteres, párrafos y citas aproximadas en tu texto académico.</p>
+            <textarea id="text-input" placeholder="Pega tu texto aquí..."></textarea>
+            <div id="text-count"></div>
+        </section>
+        <section>
+            <h2>Limpieza de Texto desde PDF</h2>
+            <p>Limpia texto copiado de PDF, corrigiendo saltos de línea rotos.</p>
+            <button id="clean-text">Limpiar Texto</button>
+        </section>
+        <section>
+            <h2>Conversión a LaTeX</h2>
+            <p>Convierte texto plano a formato LaTeX y renderiza visualmente.</p>
+            <button id="convert-to-latex">Convertir a LaTeX</button>
+            <div id="latex-output"></div>
+            <button id="render-latex">Renderizar LaTeX</button>
+            <div id="latex-render"></div>
+        </section>
+    </main>
+    <footer>
+        <p>Academic Tools - Gratuito y ético. Nada de lo que escribes o subes sale de tu computador.</p>
+    </footer>
+    <script src="app.js"></script>
+    <script src="tools/text.js"></script>
+</body>
+</html>

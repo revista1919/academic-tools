@@ -1,0 +1,71 @@
+<!-- review.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Herramientas de Revisión Académica Gratuitas - Academic Tools</title>
+    <meta name="description" content="Verificador de estructura, detector de inconsistencias, control de longitud y checklist de envío a revista. Todo local.">
+    <meta name="keywords" content="revisión académica, checklist paper, herramientas para editores, academic tools free">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <img src="assets/logoP.png" alt="Academic Tools Logo" class="logo">
+        <h1>Herramientas de Revisión Académica</h1>
+        <nav>
+            <ul>
+                <li><a href="index.html">Inicio</a></li>
+                <li><a href="text-tools.html">Texto</a></li>
+                <li><a href="references.html">Referencias</a></li>
+                <li><a href="pdf-tools.html">PDFs</a></li>
+                <li><a href="math.html">Matemáticas</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section>
+            <h2>Verificador de Estructura</h2>
+            <p>Verifica la estructura de tu paper (abstract, intro, etc.).</p>
+            <textarea id="paper-text" placeholder="Pega tu paper..."></textarea>
+            <button id="check-structure">Verificar Estructura</button>
+            <div id="structure-result"></div>
+        </section>
+        <section>
+            <h2>Detector de Inconsistencias</h2>
+            <p>Detecta inconsistencias en citas o términos.</p>
+            <button id="detect-inconsistencies">Detectar</button>
+            <div id="inconsistencies-result"></div>
+        </section>
+        <section>
+            <h2>Control de Longitud por Sección</h2>
+            <p>Controla longitud por sección.</p>
+            <button id="check-length">Controlar Longitud</button>
+            <div id="length-result"></div>
+        </section>
+        <section>
+            <h2>Checklist de Envío a Revista</h2>
+            <p>Checklist interactivo para envío a revista.</p>
+            <ul id="checklist">
+                <li><input type="checkbox" id="chk-abstract"> Abstract completo (150-250 palabras)</li>
+                <li><input type="checkbox" id="chk-keywords"> Palabras clave (3-5)</li>
+                <li><input type="checkbox" id="chk-intro"> Introducción clara</li>
+                <li><input type="checkbox" id="chk-methods"> Métodos detallados</li>
+                <li><input type="checkbox" id="chk-results"> Resultados con figuras</li>
+                <li><input type="checkbox" id="chk-discussion"> Discusión y conclusiones</li>
+                <li><input type="checkbox" id="chk-references"> Referencias completas</li>
+                <li><input type="checkbox" id="chk-format"> Formato según guía de la revista</li>
+                <li><input type="checkbox" id="chk-ethics"> Declaración ética si aplica</li>
+                <li><input type="checkbox" id="chk-funding"> Financiamiento declarado</li>
+            </ul>
+            <button id="save-checklist">Guardar Estado</button>
+            <button id="load-checklist">Cargar Estado</button>
+        </section>
+    </main>
+    <footer>
+        <p>Academic Tools - Gratuito y ético. Nada de lo que escribes o subes sale de tu computador.</p>
+    </footer>
+    <script src="app.js"></script>
+    <script src="tools/review.js"></script>
+</body>
+</html>

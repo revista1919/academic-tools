@@ -1,0 +1,82 @@
+<!-- references.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formateador de Referencias APA, Chicago y MLA - Academic Tools</title>
+    <meta name="description" content="Formateador de referencias APA, Chicago y MLA gratuito. Conversión entre estilos, generador de bibliografía desde texto plano y limpieza de referencias.">
+    <meta name="keywords" content="formatear referencias APA, formatear referencias Chicago, generador bibliografía, herramientas para investigadores, academic tools free">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <img src="assets/logoP.png" alt="Academic Tools Logo" class="logo">
+        <h1>Formateador de Referencias APA y Chicago</h1>
+        <nav>
+            <ul>
+                <li><a href="index.html">Inicio</a></li>
+                <li><a href="text-tools.html">Texto</a></li>
+                <li><a href="pdf-tools.html">PDFs</a></li>
+                <li><a href="math.html">Matemáticas</a></li>
+                <li><a href="review.html">Revisión</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section>
+            <h2>Formateador de Referencias</h2>
+            <p>Formatea referencias en APA, Chicago (autor-fecha) o MLA. Ingresa datos en formato: Autor| Año| Título| Journal| Volumen| Páginas| DOI</p>
+            <select id="style-select">
+                <option value="apa">APA</option>
+                <option value="chicago">Chicago</option>
+                <option value="mla">MLA</option>
+            </select>
+            <textarea id="ref-input" placeholder="Ingresa datos de referencia separados por | ..."></textarea>
+            <button id="format-ref">Formatear</button>
+            <div id="formatted-ref"></div>
+        </section>
+        <section>
+            <h2>Conversión entre Estilos</h2>
+            <p>Convierte una referencia formateada de un estilo a otro.</p>
+            <select id="from-style">
+                <option value="apa">De APA</option>
+                <option value="chicago">De Chicago</option>
+                <option value="mla">De MLA</option>
+            </select>
+            <select id="to-style">
+                <option value="apa">A APA</option>
+                <option value="chicago">A Chicago</option>
+                <option value="mla">A MLA</option>
+            </select>
+            <textarea id="conv-input" placeholder="Pega referencia formateada..."></textarea>
+            <button id="convert-style">Convertir</button>
+            <div id="converted-ref"></div>
+        </section>
+        <section>
+            <h2>Generador de Bibliografía</h2>
+            <p>Genera una bibliografía desde múltiples referencias en texto plano.</p>
+            <textarea id="bib-input" placeholder="Ingresa múltiples referencias, una por línea en formato Autor| Año| etc."></textarea>
+            <select id="bib-style">
+                <option value="apa">APA</option>
+                <option value="chicago">Chicago</option>
+                <option value="mla">MLA</option>
+            </select>
+            <button id="generate-bib">Generar Bibliografía</button>
+            <div id="bib-output"></div>
+        </section>
+        <section>
+            <h2>Limpieza de Referencias</h2>
+            <p>Limpia referencias mal copiadas, eliminando ruido.</p>
+            <textarea id="clean-ref-input" placeholder="Pega referencia sucia..."></textarea>
+            <button id="clean-ref">Limpiar</button>
+            <div id="cleaned-ref"></div>
+        </section>
+    </main>
+    <footer>
+        <p>Academic Tools - Gratuito y ético. Nada de lo que escribes o subes sale de tu computador.</p>
+    </footer>
+    <script src="app.js"></script>
+    <script src="tools/references.js"></script>
+</body>
+</html>
