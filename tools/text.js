@@ -1,4 +1,3 @@
-// tools/text.js
 console.log("tools/text.js cargado correctamente (CodeMirror 5 con Quill WYSIWYG mejorado)");
 document.addEventListener('DOMContentLoaded', () => {
   console.log("tools/text.js - Inicio de DOMContentLoaded");
@@ -110,6 +109,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const fetchIsbnButton = document.getElementById('fetch-isbn');
   const exportTexButton = document.getElementById('export-tex');
   const exportZipButton = document.getElementById('export-zip');
+  const exportPdfButton = document.getElementById('export-pdf');
+  const exportDocxButton = document.getElementById('export-docx');
   const saveVersionButton = document.getElementById('save-version');
   const versionsList = document.getElementById('versions-list');
   const analyzeButton = document.getElementById('analyze-text');
@@ -118,6 +119,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const importZip = document.getElementById('import-zip');
   const importTex = document.getElementById('import-tex');
   const importBib = document.getElementById('import-bib');
+  const importDocx = document.getElementById('import-docx');
+  const importPdf = document.getElementById('import-pdf');
   const tableModal = document.getElementById('table-modal');
   const tableRowsInput = document.getElementById('table-rows');
   const tableColsInput = document.getElementById('table-cols');
@@ -149,6 +152,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const closeCitationModalBtn = document.getElementById('close-citation-modal');
   const addPackageBtn = document.getElementById('add-package');
   const codeTools = document.getElementById('code-tools');
+  const ambiguityModal = document.getElementById('ambiguity-modal');
+  const ambiguitiesList = document.getElementById('ambiguities-list');
+  const ignoreAmbiguitiesBtn = document.getElementById('ignore-ambiguities');
+  const treatAsTextBtn = document.getElementById('treat-as-text');
+  const closeAmbiguityModalBtn = document.getElementById('close-ambiguity-modal');
+  const statusMessages = document.getElementById('status-messages');
+  const paperSizeSelect = document.getElementById('paper-size');
+  const orientationSelect = document.getElementById('orientation');
+  const marginTopInput = document.getElementById('margin-top');
+  const marginBottomInput = document.getElementById('margin-bottom');
+  const marginLeftInput = document.getElementById('margin-left');
+  const marginRightInput = document.getElementById('margin-right');
+  const lineSpacingSelect = document.getElementById('line-spacing');
+  const paragraphAlignSelect = document.getElementById('paragraph-align');
+  const applyPageSettingsBtn = document.getElementById('apply-page-settings');
+  const customSizeDiv = document.getElementById('custom-size');
+  const customWidthInput = document.getElementById('custom-width');
+  const customHeightInput = document.getElementById('custom-height');
   let preambleEditor, mainEditor, bibEditor, quill;
   let versions = JSON.parse(localStorage.getItem('versions')) || [];
   let images = [];
@@ -156,6 +177,16 @@ document.addEventListener('DOMContentLoaded', () => {
   let isVisualMode = true;
   let currentEditIndex = null;
   let currentEditType = null;
+  let currentAmbiguities = [];
+  let pageSettings = JSON.parse(localStorage.getItem('pageSettings')) || {
+    size: 'a4',
+    orientation: 'portrait',
+    margins: {top: 2.5, bottom: 2.5, left: 2.5, right: 2.5},
+    lineSpacing: '1.5',
+    align: 'justify',
+    customWidth: 21,
+    customHeight: 29.7
+  };
   let Delta = Quill.import('delta');
   const Parchment = Quill.import('parchment');
   const BlockEmbed = Quill.import('blots/block/embed');
@@ -461,13 +492,77 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     console.log("Visual editor (Quill) creado con más características");
   }
+  // Aplicar page settings inicial
+  applyPageSettings();
+  // Mostrar custom size si selected
+  paperSizeSelect.addEventListener('change', () => {
+    customSizeDiv.style.display = paperSizeSelect.value === 'custom' ? 'block' : 'none';
+  });
+  if (paperSizeSelect.value === 'custom') customSizeDiv.style.display = 'block';
+  // Aplicar settings
+  if (applyPageSettingsBtn) {
+    applyPageSettingsBtn.addEventListener('click', () => {
+      pageSettings.size = paperSizeSelect.value;
+      pageSettings.orientation = orientationSelect.value;
+      pageSettings.margins = {
+        top: parseFloat(marginTopInput.value),
+        bottom: parseFloat(marginBottomInput.value),
+        left: parseFloat(marginLeftInput.value),
+        right: parseFloat(marginRightInput.value)
+      };
+      pageSettings.lineSpacing = lineSpacingSelect.value;
+      pageSettings.align = paragraphAlignSelect.value;
+      pageSettings.customWidth = parseFloat(customWidthInput.value);
+      pageSettings.customHeight = parseFloat(customHeightInput.value);
+      localStorage.setItem('pageSettings', JSON.stringify(pageSettings));
+      applyPageSettings();
+      updatePreambleFromPageSettings();
+    });
+  }
+  function applyPageSettings() {
+    const {size, orientation, margins, lineSpacing, align, customWidth, customHeight} = pageSettings;
+    const sizes = {
+      a4: {portrait: {width: '21cm', height: '29.7cm'}, landscape: {width: '29.7cm', height: '21cm'}},
+      letter: {portrait: {width: '21.59cm', height: '27.94cm'}, landscape: {width: '27.94cm', height: '21.59cm'}},
+      legal: {portrait: {width: '21.59cm', height: '35.56cm'}, landscape: {width: '35.56cm', height: '21.59cm'}},
+      custom: {portrait: {width: `${customWidth}cm`, height: `${customHeight}cm`}, landscape: {width: `${customHeight}cm`, height: `${customWidth}cm`}}
+    };
+    const dim = sizes[size] ? sizes[size][orientation] : sizes['a4']['portrait'];
+    const pageContainer = document.querySelector('.page-container');
+    pageContainer.style.width = dim.width;
+    pageContainer.style.height = 'auto'; // Continuous flow
+    const qlEditor = document.querySelector('.ql-editor');
+    qlEditor.style.paddingTop = `${margins.top}cm`;
+    qlEditor.style.paddingBottom = `${margins.bottom}cm`;
+    qlEditor.style.paddingLeft = `${margins.left}cm`;
+    qlEditor.style.paddingRight = `${margins.right}cm`;
+    qlEditor.style.lineHeight = lineSpacing;
+    qlEditor.style.textAlign = align;
+    // Update print style
+    let printStyle = document.getElementById('print-style');
+    if (!printStyle) {
+      printStyle = document.createElement('style');
+      printStyle.id = 'print-style';
+      document.head.appendChild(printStyle);
+    }
+    printStyle.innerHTML = `
+      @media print {
+        @page { size: ${dim.width} ${dim.height}; margin: 0; }
+        body { margin: 0; background: white; }
+        .page-container { box-shadow: none; width: auto; height: auto; }
+        .ql-editor { padding: ${margins.top}cm ${margins.right}cm ${margins.bottom}cm ${margins.left}cm; page-break-after: avoid; }
+        #page-settings, .ql-toolbar, #sidebar, header, footer, nav { display: none; }
+      }
+    `;
+  }
   function autoSave() {
     const project = {
       preamble: preambleEditor.getValue(),
       body: isVisualMode ? quill.getContents() : mainEditor.getValue(),
       bib: bibEditor.getValue(),
       images,
-      isVisualMode
+      isVisualMode,
+      pageSettings
     };
     localStorage.setItem('currentProject', JSON.stringify(project));
   }
@@ -478,13 +573,14 @@ document.addEventListener('DOMContentLoaded', () => {
     bibEditor.setValue(savedProject.bib || '');
     images = savedProject.images || [];
     isVisualMode = savedProject.isVisualMode !== false;
+    pageSettings = savedProject.pageSettings || pageSettings;
     if (isVisualMode) {
       quill.setContents(savedProject.body || new Delta());
-      visualEditorElem.style.display = 'block';
+      visualEditorElem.parentNode.style.display = 'block';
       mainEditorElem.style.display = 'none';
     } else {
       mainEditor.setValue(savedProject.body || '');
-      visualEditorElem.style.display = 'none';
+      visualEditorElem.parentNode.style.display = 'none';
       mainEditorElem.style.display = 'block';
     }
     if (codeTools) codeTools.style.display = isVisualMode ? 'none' : 'block';
@@ -492,6 +588,23 @@ document.addEventListener('DOMContentLoaded', () => {
     parseBib();
     updateSidebar();
     updateWordCount();
+    updatePageSettingsUI();
+    // Parse preamble for initial page settings if not saved
+    if (!savedProject.pageSettings) updatePageSettingsFromPreamble();
+    applyPageSettings();
+  }
+  function updatePageSettingsUI() {
+    paperSizeSelect.value = pageSettings.size;
+    orientationSelect.value = pageSettings.orientation;
+    marginTopInput.value = pageSettings.margins.top;
+    marginBottomInput.value = pageSettings.margins.bottom;
+    marginLeftInput.value = pageSettings.margins.left;
+    marginRightInput.value = pageSettings.margins.right;
+    lineSpacingSelect.value = pageSettings.lineSpacing;
+    paragraphAlignSelect.value = pageSettings.align;
+    customWidthInput.value = pageSettings.customWidth;
+    customHeightInput.value = pageSettings.customHeight;
+    customSizeDiv.style.display = pageSettings.size === 'custom' ? 'block' : 'none';
   }
   function insertFigure() {
     const input = document.createElement('input');
@@ -503,6 +616,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const reader = new FileReader();
       reader.onload = (r) => {
         const range = quill.getSelection() || {index: quill.getLength()};
+        const name = sanitizeFilename(file.name);
+        const base64 = r.target.result.split(',')[1];
+        images.push({name, data: base64, dataurl: r.target.result});
         quill.insertEmbed(range.index, 'figure', {src: r.target.result, caption: ''});
         quill.setSelection(range.index + 1);
       };
@@ -620,16 +736,18 @@ document.addEventListener('DOMContentLoaded', () => {
       isVisualMode = !isVisualMode;
       let body;
       if (isVisualMode) {
-        body = latexToDelta(mainEditor.getValue());
-        quill.setContents(body);
-        visualEditorElem.style.display = 'block';
+        const {delta, ambiguities} = latexToDelta(mainEditor.getValue());
+        quill.setContents(delta);
+        visualEditorElem.parentNode.style.display = 'block';
         mainEditorElem.style.display = 'none';
         if (codeTools) codeTools.style.display = 'none';
         toggleModeBtn.textContent = 'Cambiar a Modo Código';
+        applyPageSettings();
+        if (ambiguities.length) showAmbiguityModal(ambiguities);
       } else {
         body = deltaToLatex(quill.getContents());
         mainEditor.setValue(body);
-        visualEditorElem.style.display = 'none';
+        visualEditorElem.parentNode.style.display = 'none';
         mainEditorElem.style.display = 'block';
         if (codeTools) codeTools.style.display = 'block';
         mainEditor.refresh();
@@ -651,6 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
       bibEditor.setValue('');
       updateSidebar();
       updateWordCount();
+      updatePageSettingsFromPreamble();
       console.log("Estructura generada con template:", template);
     });
   }
@@ -907,14 +1026,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (texFiles.length > 0) {
           texFileContent = await zip.files[texFiles[0]].async('string');
         }
-        const parts = texFileContent.split('\\begin{document}');
-        preambleEditor.setValue(parts[0] || '');
-        const bodyLatex = parts.length > 1 ? parts[1].split('\\end{document}')[0] : texFileContent;
-        if (isVisualMode) {
-          quill.setContents(latexToDelta(bodyLatex));
-        } else {
-          mainEditor.setValue(bodyLatex);
-        }
+        const {preamble: pre, body: bodyModel, ambiguities} = parseLaTeX(texFileContent);
+        preambleEditor.setValue(pre);
         const bibFiles = Object.keys(zip.files).filter(path => path.toLowerCase().endsWith('.bib'));
         let bibFileContent = '';
         if (bibFiles.length > 0) {
@@ -934,9 +1047,18 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
         await Promise.all(promises);
+        if (isVisualMode) {
+          const {delta} = modelToDelta({elements: bodyModel});
+          quill.setContents(delta);
+          if (ambiguities.length) showAmbiguityModal(ambiguities);
+        } else {
+          mainEditor.setValue(bodyModel.map(el => elToLatex(el)).join('\n'));
+        }
         parseBib();
         updateSidebar();
         updateWordCount();
+        updatePageSettingsFromPreamble();
+        statusMessages.innerText = 'Proyecto importado. Algunas partes pueden haber sido aproximadas o perdidas.';
         alert('Proyecto importado exitosamente.');
       } catch (e) {
         console.error('Error importando .zip:', e);
@@ -951,16 +1073,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const reader = new FileReader();
       reader.onload = (r) => {
         const text = r.target.result;
-        const parts = text.split('\\begin{document}');
-        preambleEditor.setValue(parts[0] || '');
-        const bodyLatex = parts.length > 1 ? parts[1].split('\\end{document}')[0] : text;
+        const {preamble: pre, body: bodyModel, ambiguities} = parseLaTeX(text);
+        preambleEditor.setValue(pre);
         if (isVisualMode) {
-          quill.setContents(latexToDelta(bodyLatex));
+          const {delta} = modelToDelta({elements: bodyModel});
+          quill.setContents(delta);
+          if (ambiguities.length) showAmbiguityModal(ambiguities);
         } else {
-          mainEditor.setValue(bodyLatex);
+          mainEditor.setValue(bodyModel.map(el => elToLatex(el)).join('\n'));
         }
         updateSidebar();
         updateWordCount();
+        updatePageSettingsFromPreamble();
+        statusMessages.innerText = 'Archivo .tex importado. Algunas partes pueden haber sido aproximadas o perdidas.';
         alert('Archivo .tex importado.');
       };
       reader.readAsText(file);
@@ -980,6 +1105,406 @@ document.addEventListener('DOMContentLoaded', () => {
       reader.readAsText(file);
     });
   }
+  if (importDocx) {
+    importDocx.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (r) => {
+        try {
+          const {value: html} = await mammoth.convertToHtml({arrayBuffer: r.target.result});
+          if (isVisualMode) {
+            quill.root.innerHTML = html;
+          } else {
+            mainEditor.setValue(html); // Aproximado como texto
+          }
+          updateSidebar();
+          updateWordCount();
+          statusMessages.innerText = 'DOCX importado como HTML aproximado. Estructura avanzada perdida.';
+          alert('Archivo .docx importado (aproximado).');
+        } catch (e) {
+          alert('Error importando .docx: ' + e.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+  if (importPdf) {
+    importPdf.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (r) => {
+        try {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://mozilla.github.io/pdf.js/build/pdf.worker.min.js';
+          const loadingTask = pdfjsLib.getDocument(r.target.result);
+          const pdf = await loadingTask.promise;
+          let text = '';
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            content.items.forEach(item => text += item.str + (item.hasEOL ? '\n\n' : ' '));
+          }
+          if (isVisualMode) {
+            quill.setText(text);
+          } else {
+            mainEditor.setValue(text);
+          }
+          updateSidebar();
+          updateWordCount();
+          statusMessages.innerText = 'PDF importado solo como texto plano. Estructura, imágenes y formatos perdidos (limitación del navegador puro).';
+          alert('Archivo .pdf importado (solo texto).');
+        } catch (e) {
+          alert('Error importando .pdf: ' + e.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+  // Parser LaTeX -> model intermedio (JSON) - Limitado a soportado, tolerante a errores
+  // Límite: Solo parses básicos, no anidados complejos o macros. Ambigüedades manejadas.
+  function parseLaTeX(tex) {
+    const documentMatch = tex.match(/\\begin\{document\}([\s\S]*?)\\end\{document\}/);
+    const bodyText = documentMatch ? documentMatch[1] : tex;
+    const preamble = tex.replace(bodyText, '').replace(/\\begin\{document\}|\\end\{document\}/g, '').trim();
+    const ambiguities = [];
+    const elements = [];
+    // Simple tokenizer usando regex para comandos soportados
+    const tokenRegex = /\\(section|subsection|subsubsection|begin|end|includegraphics|caption|cite|href|footnote|geometry)\{([^{}]*)\}|\\begin\{(equation|align|table|figure|tabular|itemize|enumerate)\}([\s\S]*?)\\end\{(equation|align|table|figure|tabular|itemize|enumerate)\}|(\$\$?[\s\S]*?\$\$?)|(\\[^ {]+(?:\{[^\}]*\})?)|([^\\/]+)/g;
+    let match;
+    let currentText = '';
+    let inEnv = null;
+    let envType = null;
+    let envContent = '';
+    while ((match = tokenRegex.exec(bodyText)) !== null) {
+      if (match[1]) { // Command with {}
+        const cmd = match[1];
+        const arg = match[2];
+        if (cmd === 'section') {
+          if (currentText.trim()) elements.push({type: 'paragraph', text: currentText.trim()});
+          currentText = '';
+          elements.push({type: 'heading', level: 1, title: arg});
+        } else if (cmd === 'subsection') {
+          if (currentText.trim()) elements.push({type: 'paragraph', text: currentText.trim()});
+          currentText = '';
+          elements.push({type: 'heading', level: 2, title: arg});
+        } else if (cmd === 'subsubsection') {
+          if (currentText.trim()) elements.push({type: 'paragraph', text: currentText.trim()});
+          currentText = '';
+          elements.push({type: 'heading', level: 3, title: arg});
+        } else if (cmd === 'cite') {
+          currentText += ` [citation:${arg}] `;
+        } else if (cmd === 'href') {
+          currentText += ` [link:${arg}] `;
+        } else if (cmd === 'footnote') {
+          currentText += ` ^${arg}^ `;
+        } else if (cmd === 'includegraphics') {
+          if (inEnv === 'figure') {
+            envContent.src = arg;
+          } else {
+            elements.push({type: 'figure', src: arg, caption: ''});
+          }
+        } else if (cmd === 'caption') {
+          if (inEnv === 'figure') {
+            envContent.caption = arg;
+          } else if (inEnv === 'table') {
+            envContent.caption = arg;
+          }
+        } else if (cmd === 'begin') {
+          inEnv = arg;
+          envContent = '';
+        } else if (cmd === 'end') {
+          if (inEnv === arg) {
+            if (currentText.trim()) elements.push({type: 'paragraph', text: currentText.trim()});
+            currentText = '';
+            elements.push({type: inEnv, content: envContent.trim()});
+            inEnv = null;
+          }
+        } else {
+          ambiguities.push({command: `\\${cmd}{${arg}}`, suggestion: 'Unsupported command', raw: match[0]});
+        }
+      } else if (match[3] && match[4] && match[5]) { // \begin{env} content \end{env}
+        envType = match[3];
+        envContent = match[4].trim();
+        if (envType === 'equation' || envType === 'align') {
+          elements.push({type: 'equation', latex: envContent});
+        } else if (envType === 'table' || envType === 'figure') {
+          // Parse inner for tabular or img+caption
+          if (envType === 'table') {
+            const tabularMatch = envContent.match(/\\begin\{tabular\}\{.*\}([\s\S]*?)\\end\{tabular\}/);
+            if (tabularMatch) {
+              const tabular = tabularMatch[1];
+              let html = '<tbody>';
+              const rows = tabular.split('\\\\');
+              rows.forEach(row => {
+                if (row.trim()) {
+                  html += '<tr><td>' + row.split('&').join('</td><td>') + '</td></tr>';
+                }
+              });
+              html += '</tbody>';
+              elements.push({type: 'table', html});
+            } else {
+              ambiguities.push({command: '\\begin{table}', suggestion: 'No tabular found', raw: match[0]});
+            }
+          } else if (envType === 'figure') {
+            const imgMatch = envContent.match(/\\includegraphics\{(.*?)\}/);
+            const capMatch = envContent.match(/\\caption\{(.*?)\}/);
+            elements.push({type: 'figure', src: imgMatch ? imgMatch[1] : '', caption: capMatch ? capMatch[1] : ''});
+          }
+        } else if (envType === 'itemize' || envType === 'enumerate') {
+          const items = envContent.split('\\item').map(i => i.trim()).filter(i => i);
+          elements.push({type: 'list', ordered: envType === 'enumerate', items});
+        } else {
+          ambiguities.push({command: `\\begin{${envType}}`, suggestion: 'Unsupported environment', raw: match[0]});
+        }
+      } else if (match[6]) { // Math $$ or $
+        elements.push({type: 'equation', latex: match[6].replace(/^\$+|\$+$/g, '').trim()});
+      } else if (match[7]) { // Unsupported command
+        ambiguities.push({command: match[7], suggestion: 'Unsupported command', raw: match[7]});
+      } else if (match[8]) { // Text
+        currentText += match[8];
+      }
+    }
+    if (currentText.trim()) elements.push({type: 'paragraph', text: currentText.trim()});
+    return {preamble, body: elements, ambiguities};
+  }
+  function modelToDelta(model) {
+    const delta = new Delta();
+    model.elements.forEach(el => {
+      switch (el.type) {
+        case 'heading':
+          delta.insert(el.title + '\n', {header: el.level});
+          break;
+        case 'paragraph':
+          delta.insert(el.text + '\n');
+          break;
+        case 'equation':
+          delta.insert({equation: el.latex});
+          delta.insert('\n');
+          break;
+        case 'table':
+          delta.insert({table: {html: el.html}});
+          delta.insert('\n');
+          break;
+        case 'figure':
+          delta.insert({figure: {src: el.src, caption: el.caption}});
+          delta.insert('\n');
+          break;
+        case 'list':
+          el.items.forEach(item => {
+            delta.insert(item + '\n', {list: el.ordered ? 'ordered' : 'bullet'});
+          });
+          break;
+        case 'unsupported':
+          delta.insert(el.text + '\n', {'code-block': true});
+          break;
+        default:
+          // Ignore or log
+      }
+    });
+    return {delta};
+  }
+  function latexToDelta(latex) {
+    const {body: model, ambiguities} = parseLaTeX(latex);
+    const {delta} = modelToDelta({elements: model});
+    return {delta, ambiguities};
+  }
+  function deltaToModel(delta) {
+    const model = [];
+    let currentParagraph = '';
+    let listType = null;
+    let listItems = [];
+    delta.ops.forEach(op => {
+      if (op.insert) {
+        if (typeof op.insert === 'string') {
+          if (op.attributes && op.attributes.header) {
+            if (currentParagraph) model.push({type: 'paragraph', text: currentParagraph});
+            currentParagraph = '';
+            if (listItems.length) {
+              model.push({type: 'list', ordered: listType === 'ordered', items: listItems});
+              listItems = [];
+              listType = null;
+            }
+            model.push({type: 'heading', level: op.attributes.header, title: op.insert.trim()});
+          } else if (op.attributes && op.attributes.list) {
+            if (currentParagraph) model.push({type: 'paragraph', text: currentParagraph});
+            currentParagraph = '';
+            if (listType !== op.attributes.list) {
+              if (listItems.length) model.push({type: 'list', ordered: listType === 'ordered', items: listItems});
+              listType = op.attributes.list;
+              listItems = [];
+            }
+            listItems.push(op.insert.trim());
+          } else {
+            currentParagraph += op.insert;
+          }
+        } else {
+          if (currentParagraph) model.push({type: 'paragraph', text: currentParagraph});
+          currentParagraph = '';
+          if (listItems.length) {
+            model.push({type: 'list', ordered: listType === 'ordered', items: listItems});
+            listItems = [];
+            listType = null;
+          }
+          const key = Object.keys(op.insert)[0];
+          const value = op.insert[key];
+          switch (key) {
+            case 'equation':
+              model.push({type: 'equation', latex: value});
+              break;
+            case 'table':
+              model.push({type: 'table', html: value.html});
+              break;
+            case 'figure':
+              model.push({type: 'figure', src: value.src, caption: value.caption});
+              break;
+            case 'abstract':
+              model.push({type: 'abstract', content: value});
+              break;
+            case 'theorem':
+              model.push({type: 'theorem', content: value});
+              break;
+            case 'lemma':
+              model.push({type: 'lemma', content: value});
+              break;
+            case 'proof':
+              model.push({type: 'proof', content: value});
+              break;
+          }
+        }
+      }
+    });
+    if (currentParagraph) model.push({type: 'paragraph', text: currentParagraph});
+    if (listItems.length) model.push({type: 'list', ordered: listType === 'ordered', items: listItems});
+    return model;
+  }
+  function elToLatex(el) {
+    switch (el.type) {
+      case 'heading':
+        const tag = el.level === 1 ? 'section' : el.level === 2 ? 'subsection' : 'subsubsection';
+        return `\\${tag}{${el.title}}`;
+      case 'paragraph':
+        return el.text;
+      case 'equation':
+        return `\\begin{equation}\n${el.latex}\n\\end{equation}`;
+      case 'table':
+        const table = new DOMParser().parseFromString(`<table>${el.html}</table>`, 'text/html').querySelector('table');
+        let cols = table.rows[0] ? table.rows[0].cells.length : 0;
+        let latex = '\\begin{table}[h]\n\\centering\n\\begin{tabular}{' + 'c'.repeat(cols) + '}\n';
+        for (let i = 0; i < table.rows.length; i++) {
+          const cells = Array.from(table.rows[i].cells).map(cell => cell.innerText);
+          latex += cells.join(' & ') + ' \\\\ \n';
+        }
+        latex += '\\end{tabular}\n\\caption{}\n\\label{}\n\\end{table}';
+        return latex;
+      case 'figure':
+        let src = el.src;
+        if (src.startsWith('data:')) {
+          const base64 = src.split(',')[1];
+          const mime = src.match(/:(.*?);/)[1];
+          const ext = mime.split('/')[1];
+          const name = `image${images.length}.${ext}`;
+          images.push({name, data: base64});
+          src = name;
+        }
+        return `\\begin{figure}[h]\n\\centering\n\\includegraphics[width=0.8\\textwidth]{${src}}\n\\caption{${el.caption}}\n\\label{}\n\\end{figure}`;
+      case 'list':
+        const env = el.ordered ? 'enumerate' : 'itemize';
+        return `\\begin{${env}}\n` + el.items.map(item => `\\item ${item}`).join('\n') + `\n\\end{${env}}`;
+      case 'abstract':
+        return `\\begin{abstract}\n${el.content}\n\\end{abstract}`;
+      case 'theorem':
+        return `\\begin{theorem}\n${el.content}\n\\end{theorem}`;
+      case 'lemma':
+        return `\\begin{lemma}\n${el.content}\n\\end{lemma}`;
+      case 'proof':
+        return `\\begin{proof}\n${el.content}\n\\end{proof}`;
+      case 'unsupported':
+        return `% Normalized: approximated unsupported\n${el.text}`;
+      default:
+        return '';
+    }
+  }
+  function deltaToLatex(delta) {
+    const model = deltaToModel(delta);
+    return model.map(elToLatex).join('\n');
+  }
+  function showAmbiguityModal(ambiguities) {
+    currentAmbiguities = ambiguities;
+    ambiguitiesList.innerHTML = ambiguities.map(a => `<li>${a.command}: ${a.suggestion}</li>`).join('');
+    ambiguityModal.style.display = 'block';
+  }
+  if (ignoreAmbiguitiesBtn) {
+    ignoreAmbiguitiesBtn.addEventListener('click', () => {
+      closeAmbiguityModal();
+    });
+  }
+  if (treatAsTextBtn) {
+    treatAsTextBtn.addEventListener('click', () => {
+      currentAmbiguities.forEach(a => {
+        const range = quill.getSelection() || {index: quill.getLength()};
+        quill.insertEmbed(range.index, 'code-block', a.raw);
+        quill.insertText(range.index + 1, '\n');
+      });
+      closeAmbiguityModal();
+    });
+  }
+  if (closeAmbiguityModalBtn) {
+    closeAmbiguityModalBtn.addEventListener('click', closeAmbiguityModal);
+  }
+  function closeAmbiguityModal() {
+    ambiguityModal.style.display = 'none';
+    currentAmbiguities = [];
+  }
+  function updatePageSettingsFromPreamble() {
+    const pre = preambleEditor.getValue();
+    const geometryMatch = pre.match(/\\geometry\{(.*)\}/);
+    if (geometryMatch) {
+      const params = geometryMatch[1].split(',').map(p => p.trim().split('='));
+      params.forEach(([key, val]) => {
+        if (key === 'a4paper') pageSettings.size = 'a4';
+        else if (key === 'letterpaper') pageSettings.size = 'letter';
+        else if (key === 'legalpaper') pageSettings.size = 'legal';
+        else if (key === 'margin') {
+          const m = parseFloat(val.replace('cm', ''));
+          pageSettings.margins = {top: m, bottom: m, left: m, right: m};
+        } else if (key === 'top') pageSettings.margins.top = parseFloat(val.replace('cm', ''));
+        else if (key === 'bottom') pageSettings.margins.bottom = parseFloat(val.replace('cm', ''));
+        else if (key === 'left') pageSettings.margins.left = parseFloat(val.replace('cm', ''));
+        else if (key === 'right') pageSettings.margins.right = parseFloat(val.replace('cm', ''));
+      });
+    }
+    const docMatch = pre.match(/\\documentclass\[(.*)\]{/);
+    if (docMatch && docMatch[1].includes('landscape')) pageSettings.orientation = 'landscape';
+    if (pre.includes('\\doublespacing')) pageSettings.lineSpacing = '2';
+    else if (pre.includes('\\onehalfspacing')) pageSettings.lineSpacing = '1.5';
+    else if (pre.includes('\\singlespacing')) pageSettings.lineSpacing = '1';
+    updatePageSettingsUI();
+    applyPageSettings();
+  }
+  function updatePreambleFromPageSettings() {
+    let pre = preambleEditor.getValue();
+    // Remove existing geometry
+    pre = pre.replace(/\\geometry\{.*\}/, '');
+    let geometry = '\\geometry{';
+    geometry += `${pageSettings.size}paper, `;
+    geometry += `top=${pageSettings.margins.top}cm, bottom=${pageSettings.margins.bottom}cm, left=${pageSettings.margins.left}cm, right=${pageSettings.margins.right}cm`;
+    geometry += '}';
+    pre += `\n${geometry}`;
+    // Setspace
+    pre = pre.replace(/\\(double|onehalf|single)spacing/, '');
+    let spacingCmd = '';
+    if (pageSettings.lineSpacing === '2') spacingCmd = '\\doublespacing';
+    else if (pageSettings.lineSpacing === '1.5') spacingCmd = '\\onehalfspacing';
+    else spacingCmd = '\\singlespacing';
+    pre += `\n${spacingCmd}`;
+    // Orientation in documentclass
+    pre = pre.replace(/\[landscape\]/, '');
+    if (pageSettings.orientation === 'landscape') {
+      pre = pre.replace(/\\documentclass\{/, '\\documentclass[landscape]{');
+    }
+    preambleEditor.setValue(pre);
+  }
   if (saveVersionButton) {
     saveVersionButton.addEventListener('click', () => {
       const version = {
@@ -988,6 +1513,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bib: bibEditor.getValue(),
         images: images.map(img => ({ name: img.name, data: img.data })),
         isVisualMode,
+        pageSettings,
         timestamp: new Date().toISOString()
       };
       versions.push(version);
@@ -1006,15 +1532,16 @@ document.addEventListener('DOMContentLoaded', () => {
         preambleEditor.setValue(v.preamble);
         bibEditor.setValue(v.bib);
         images = v.images;
+        pageSettings = v.pageSettings;
         if (v.isVisualMode) {
           quill.setContents(v.body);
-          visualEditorElem.style.display = 'block';
+          visualEditorElem.parentNode.style.display = 'block';
           mainEditorElem.style.display = 'none';
           isVisualMode = true;
           toggleModeBtn.textContent = 'Cambiar a Modo Código';
         } else {
           mainEditor.setValue(v.body);
-          visualEditorElem.style.display = 'none';
+          visualEditorElem.parentNode.style.display = 'none';
           mainEditorElem.style.display = 'block';
           isVisualMode = false;
           toggleModeBtn.textContent = 'Cambiar a Modo Visual';
@@ -1023,261 +1550,13 @@ document.addEventListener('DOMContentLoaded', () => {
         parseBib();
         updateSidebar();
         updateWordCount();
+        updatePageSettingsUI();
+        applyPageSettings();
       };
       versionsList.appendChild(btn);
     });
   }
   updateVersionsList();
-  function deltaToLatex(delta) {
-    try {
-      let latex = '';
-      let listType = null;
-      let listItems = [];
-      let quote = false;
-      let code = false;
-      images = []; // Reset y recolectar
-      function flushList() {
-        if (listItems.length) {
-          latex += '\\begin{' + listType + '}\n' + listItems.map(item => '\\item ' + item).join('\n') + '\n\\end{' + listType + '}\n';
-          listItems = [];
-          listType = null;
-        }
-      }
-      delta.ops.forEach((op, idx) => {
-        if (op.insert) {
-          if (typeof op.insert === 'string') {
-            let text = op.insert.replace(/\n/g, '\\\\\n');
-            if (op.attributes) {
-              if (op.attributes.citation) text = '\\cite{' + op.attributes.citation + '}';
-              if (op.attributes.bold) text = '\\textbf{' + text + '}';
-              if (op.attributes.italic) text = '\\textit{' + text + '}';
-              if (op.attributes.underline) text = '\\underline{' + text + '}';
-              if (op.attributes.strike) text = '\\sout{' + text + '}';
-              if (op.attributes.link) text = '\\href{' + op.attributes.link + '}{' + text + '}';
-              if (op.attributes.code) text = '\\texttt{' + text + '}';
-              if (op.attributes.script === 'super') text = '^{' + text + '}';
-              if (op.attributes.script === 'sub') text = '_{' + text + '}';
-              if (op.attributes.header) {
-                flushList();
-                const level = op.attributes.header;
-                const tag = level === 1 ? 'section' : level === 2 ? 'subsection' : level === 3 ? 'subsubsection' : level === 4 ? 'paragraph' : 'subparagraph';
-                text = '\\' + tag + '{' + text.trim() + '}\n';
-              }
-              if (op.attributes.blockquote) {
-                if (!quote) {
-                  flushList();
-                  latex += '\\begin{quote}\n';
-                  quote = true;
-                }
-                latex += text;
-                if (!delta.ops[idx + 1] || !delta.ops[idx + 1].attributes?.blockquote) {
-                  latex += '\\end{quote}\n';
-                  quote = false;
-                }
-                return;
-              } else if (quote) {
-                latex += '\\end{quote}\n';
-                quote = false;
-              }
-              if (op.attributes['code-block']) {
-                if (!code) {
-                  flushList();
-                  latex += '\\begin{verbatim}\n';
-                  code = true;
-                }
-                latex += text;
-                if (!delta.ops[idx + 1] || !delta.ops[idx + 1].attributes?.['code-block']) {
-                  latex += '\\end{verbatim}\n';
-                  code = false;
-                }
-                return;
-              } else if (code) {
-                latex += '\\end{verbatim}\n';
-                code = false;
-              }
-              if (op.attributes.list) {
-                const type = op.attributes.list === 'ordered' ? 'enumerate' : 'itemize';
-                if (type !== listType) {
-                  flushList();
-                  listType = type;
-                }
-                listItems.push(text.trim());
-                return;
-              } else {
-                flushList();
-              }
-              if (op.attributes.color) text = '\\textcolor{' + op.attributes.color + '}{' + text + '}';
-              if (op.attributes.background) text = '\\colorbox{' + op.attributes.background + '}{' + text + '}';
-              if (op.attributes.align) text = '\\begin{' + op.attributes.align + '}\n' + text + '\\end{' + op.attributes.align + '}\n';
-            } else {
-              flushList();
-            }
-            latex += text;
-          } else if (typeof op.insert === 'object') {
-            flushList();
-            const key = Object.keys(op.insert)[0];
-            const value = op.insert[key];
-            switch (key) {
-              case 'equation':
-                latex += '\\begin{equation}\n' + value + '\n\\end{equation}\n';
-                break;
-              case 'table':
-                const html = value.html;
-                const table = new DOMParser().parseFromString(`<table>${html}</table>`, 'text/html').querySelector('table');
-                let cols = 0;
-                if (table.rows.length > 0) {
-                  cols = table.rows[0].cells.length;
-                }
-                latex += '\\begin{table}[h]\n\\centering\n\\begin{tabular}{' + 'c'.repeat(cols) + '}\n';
-                for (let i = 0; i < table.rows.length; i++) {
-                  const cells = Array.from(table.rows[i].cells).map(cell => cell.innerText);
-                  latex += cells.join(' & ') + ' \\\\ \n';
-                }
-                latex += '\\end{tabular}\n\\caption{}\n\\label{}\n\\end{table}\n';
-                break;
-              case 'figure':
-                let src = value.src;
-                let caption = value.caption;
-                if (src.startsWith('data:')) {
-                  const base64 = src.split(',')[1];
-                  const mime = src.match(/:(.*?);/)[1];
-                  const ext = mime.split('/')[1];
-                  const name = `image${images.length}.${ext}`;
-                  images.push({name, data: base64});
-                  src = 'images/' + name;
-                }
-                latex += '\\begin{figure}[h]\n\\centering\n\\includegraphics[width=0.8\\textwidth]{' + src + '}\n\\caption{' + caption + '}\n\\label{}\n\\end{figure}\n';
-                break;
-              case 'abstract':
-                latex += '\\begin{abstract}\n' + value + '\n\\end{abstract}\n';
-                break;
-              case 'theorem':
-                latex += '\\begin{theorem}\n' + value + '\n\\end{theorem}\n';
-                break;
-              case 'lemma':
-                latex += '\\begin{lemma}\n' + value + '\n\\end{lemma}\n';
-                break;
-              case 'proof':
-                latex += '\\begin{proof}\n' + value + '\n\\end{proof}\n';
-                break;
-            }
-          }
-        }
-      });
-      flushList();
-      if (quote) latex += '\\end{quote}\n';
-      if (code) latex += '\\end{verbatim}\n';
-      return latex;
-    } catch (e) {
-      console.error('Error convirtiendo Delta a LaTeX:', e);
-      return '';
-    }
-  }
-  function latexToDelta(latex) {
-    try {
-      const delta = new Delta();
-      latex = latex.replace(/\\begin{document}|\\end{document}/g, '');
-      const lines = latex.split('\n');
-      let inEnv = null;
-      let envContent = [];
-      lines.forEach(line => {
-        line = line.trim();
-        if (!line) {
-          delta.insert('\n');
-          return;
-        }
-        if (line.startsWith('\\begin{')) {
-          inEnv = line.match(/\\begin{(.+)}/)[1];
-          envContent = [];
-          return;
-        } else if (line.startsWith('\\end{') && inEnv) {
-          const content = envContent.join('\n');
-          switch (inEnv) {
-            case 'equation':
-              delta.insert({equation: content});
-              break;
-            case 'table':
-              // Parse tabular to html
-              let html = '<tbody>';
-              const tabularLines = content.split('\\\\');
-              tabularLines.forEach(tl => {
-                if (tl.trim()) {
-                  html += '<tr><td>' + tl.split('&').join('</td><td>') + '</td></tr>';
-                }
-              });
-              html += '</tbody>';
-              delta.insert({table: {html}});
-              break;
-            case 'figure':
-              // Simple, assume \includegraphics{src} \caption{cap}
-              const srcMatch = content.match(/\\includegraphics.*{(.+)}/);
-              const capMatch = content.match(/\\caption{(.+)}/);
-              delta.insert({figure: {src: srcMatch ? srcMatch[1] : '', caption: capMatch ? capMatch[1] : ''}});
-              break;
-            case 'abstract':
-              delta.insert({abstract: content});
-              break;
-            case 'theorem':
-              delta.insert({theorem: content});
-              break;
-            case 'lemma':
-              delta.insert({lemma: content});
-              break;
-            case 'proof':
-              delta.insert({proof: content});
-              break;
-            default:
-              delta.insert(content + '\n');
-          }
-          inEnv = null;
-          return;
-        } else if (inEnv) {
-          envContent.push(line);
-          return;
-        }
-        if (line.startsWith('\\section{')) {
-          const title = line.match(/\\section{(.*)}/)[1];
-          delta.insert(title + '\n', {header: 1});
-        } else if (line.startsWith('\\subsection{')) {
-          const title = line.match(/\\subsection{(.*)}/)[1];
-          delta.insert(title + '\n', {header: 2});
-        } else if (line.startsWith('\\subsubsection{')) {
-          const title = line.match(/\\subsubsection{(.*)}/)[1];
-          delta.insert(title + '\n', {header: 3});
-        } else if (line.startsWith('\\paragraph{')) {
-          const title = line.match(/\\paragraph{(.*)}/)[1];
-          delta.insert(title + '\n', {header: 4});
-        } else if (line.startsWith('\\subparagraph{')) {
-          const title = line.match(/\\subparagraph{(.*)}/)[1];
-          delta.insert(title + '\n', {header: 5});
-        } else if (line.startsWith('\\textbf{')) {
-          const text = line.match(/\\textbf{(.*)}/)[1];
-          delta.insert(text, {bold: true});
-        } else if (line.startsWith('\\textit{')) {
-          const text = line.match(/\\textit{(.*)}/)[1];
-          delta.insert(text, {italic: true});
-        } else if (line.startsWith('\\underline{')) {
-          const text = line.match(/\\underline{(.*)}/)[1];
-          delta.insert(text, {underline: true});
-        } else if (line.startsWith('\\cite{')) {
-          const key = line.match(/\\cite{(.*)}/)[1];
-          delta.insert('\uFEFF', {citation: key});
-        } else if (line.startsWith('\\href{')) {
-          const match = line.match(/\\href{(.+)}{(.+)}/);
-          delta.insert(match[2], {link: match[1]});
-        } else if (line.startsWith('\\footnote{')) {
-          const text = line.match(/\\footnote{(.*)}/)[1];
-          delta.insert(text, {script: 'super'});
-        } else {
-          delta.insert(line + '\n');
-        }
-      });
-      return delta;
-    } catch (e) {
-      console.error('Error convirtiendo LaTeX a Delta:', e);
-      return new Delta().insert(latex);
-    }
-  }
   function sanitizeFilename(name) {
     return name.replace(/[^a-zA-Z0-9.-]/g, '_');
   }
@@ -1317,6 +1596,74 @@ document.addEventListener('DOMContentLoaded', () => {
         a.click();
       } catch (e) {
         alert('Error exportando .zip: ' + e.message);
+      }
+    });
+  }
+  if (exportPdfButton) {
+    exportPdfButton.addEventListener('click', () => {
+      window.print();
+    });
+  }
+  if (exportDocxButton) {
+    exportDocxButton.addEventListener('click', async () => {
+      try {
+        const model = isVisualMode ? deltaToModel(quill.getContents()) : parseLaTeX(mainEditor.getValue()).body;
+        const doc = new docx.Document({
+          sections: [{
+            properties: {
+              page: {
+                size: {
+                  width: docx.convertMillimetersToTwip(210), // A4 default
+                  height: docx.convertMillimetersToTwip(297),
+                },
+                margin: {
+                  top: docx.convertMillimetersToTwip(pageSettings.margins.top * 10),
+                  bottom: docx.convertMillimetersToTwip(pageSettings.margins.bottom * 10),
+                  left: docx.convertMillimetersToTwip(pageSettings.margins.left * 10),
+                  right: docx.convertMillimetersToTwip(pageSettings.margins.right * 10),
+                },
+              },
+            },
+            children: model.map(el => {
+              switch (el.type) {
+                case 'heading':
+                  return new docx.Paragraph({
+                    text: el.title,
+                    heading: el.level === 1 ? docx.HeadingLevel.HEADING_1 : docx.HeadingLevel[`HEADING_${el.level}`],
+                  });
+                case 'paragraph':
+                  return new docx.Paragraph({ text: el.text });
+                case 'equation':
+                  return new docx.Paragraph({ text: `[Equation: ${el.latex}]` }); // Approximation
+                case 'table':
+                  const table = new DOMParser().parseFromString(`<table>${el.html}</table>`, 'text/html').querySelector('table');
+                  const rows = [];
+                  for (let i = 0; i < table.rows.length; i++) {
+                    const cells = Array.from(table.rows[i].cells).map(cell => new docx.TableCell({children: [new docx.Paragraph(cell.innerText)]}));
+                    rows.push(new docx.TableRow({children: cells}));
+                  }
+                  return new docx.Table({rows});
+                case 'figure':
+                  let buffer;
+                  if (el.src.startsWith('data:')) {
+                    const base64 = el.src.split(',')[1];
+                    buffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+                  } else {
+                    // Assume local, skip or warn
+                    return new docx.Paragraph({ text: '[Figure]' });
+                  }
+                  const image = docx.Media.addImage(doc, buffer, 500, 300);
+                  return new docx.Paragraph({ children: [image] });
+                default:
+                  return new docx.Paragraph({ text: '' });
+              }
+            }),
+          }],
+        });
+        const blob = await docx.Packer.toBlob(doc);
+        saveAs(blob, 'document.docx');
+      } catch (e) {
+        alert('Error exportando .docx: ' + e.message);
       }
     });
   }
@@ -1462,14 +1809,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     input.click();
   }
-  if (addPackageBtn) {
-    addPackageBtn.addEventListener('click', () => {
-      const name = prompt('Nombre del paquete:');
-      if (name) {
-        preambleEditor.setValue(preambleEditor.getValue() + `\n\\usepackage{${name}}`);
-      }
-    });
-  }
   // Más mejoras: drag drop imágenes en visual
   visualEditorElem.addEventListener('drop', (e) => {
     e.preventDefault();
@@ -1478,6 +1817,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const reader = new FileReader();
       reader.onload = (r) => {
         const range = quill.getSelection() || {index: quill.getLength()};
+        const name = sanitizeFilename(file.name);
+        const base64 = r.target.result.split(',')[1];
+        images.push({name, data: base64, dataurl: r.target.result});
         quill.insertEmbed(range.index, 'figure', {src: r.target.result, caption: ''});
         quill.setSelection(range.index + 1);
       };
