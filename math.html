@@ -13,6 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/tesseract.js@v5/dist/tesseract.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/mathlive"></script>
 </head>
 <body>
     <header>
@@ -30,8 +31,8 @@
     </header>
     <main>
         <section>
-            <h2>Render LaTeX en Tiempo Real</h2>
-            <p>Escribe LaTeX con sugerencias de símbolos y plantillas, ve el render inmediatamente.</p>
+            <h2>Editor Visual de Ecuaciones (como en Word)</h2>
+            <p>Edita ecuaciones visualmente con soporte para símbolos y plantillas. El editor muestra la fórmula renderizada mientras editas.</p>
             <select id="symbol-category">
                 <option value="basic">Básicos</option>
                 <option value="calculus">Cálculo</option>
@@ -50,16 +51,25 @@
             <select id="template-select">
                 <option value="\\begin{pmatrix} a & b \\ c & d \\end{pmatrix}">Matriz 2x2</option>
                 <option value="\\int_{a}^{b} f(x) dx">Integral definida</option>
-                <!-- Más plantillas -->
+                <option value="\\sum_{i=1}^{n} a_i">Suma</option>
+                <option value="\\lim_{x \\to \\infty}">Límite</option>
+                <option value="\\frac{d}{dx} f(x)">Derivada</option>
+                <option value="\\sqrt[ n ]{ x }">Raíz n-ésima</option>
+                <option value="a^{b}">Exponente</option>
+                <option value="\\log_{b} a">Logaritmo</option>
+                <option value="\\begin{cases} a & b \\ c & d \\end{cases}">Casos</option>
+                <option value="\\binom{n}{k}">Binomial</option>
+                <!-- Más plantillas añadidas para mayor complejidad -->
             </select>
             <button id="insert-template">Insertar Plantilla</button>
-            <textarea id="latex-input" placeholder="Escribe LaTeX..."></textarea>
+            <math-field id="math-field" virtual-keyboard-mode="auto" smart-fence></math-field>
+            <h3>Preview Estático:</h3>
             <div id="latex-output"></div>
             <button id="copy-latex">Copiar LaTeX</button>
         </section>
         <section>
             <h2>Fórmula a Imagen</h2>
-            <p>Convierte fórmula LaTeX a imagen descargable con opciones de color y tamaño.</p>
+            <p>Convierte la fórmula editada a imagen descargable con opciones de color y tamaño.</p>
             <select id="color-select">
                 <option value="black">Negro</option>
                 <option value="red">Rojo</option>

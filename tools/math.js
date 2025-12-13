@@ -5,8 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const Chart = window.Chart;
     const Tesseract = window.Tesseract;
 
-    // Render LaTeX en tiempo real con sugerencias y plantillas
-    const latexInput = document.getElementById('latex-input');
+    // Render LaTeX en tiempo real con editor visual usando MathLive
+    const mathField = document.getElementById('math-field');
     const latexOutput = document.getElementById('latex-output');
     const symbolCategory = document.getElementById('symbol-category');
     const symbolSelect = document.getElementById('symbol-select');
@@ -398,30 +398,9 @@ document.addEventListener('DOMContentLoaded', () => {
         populateSymbols(symbolCategory.value);
     }
 
-    function insertAtCursor(input, text) {
-        const pos = input.selectionStart;
-        const val = input.value;
-        input.value = val.slice(0, pos) + text + val.slice(pos);
-        input.selectionStart = input.selectionEnd = pos + text.length;
-        input.focus();
-        input.dispatchEvent(new Event('input'));
-    }
-
-    if (insertSymbol && latexInput) {
-        insertSymbol.addEventListener('click', () => {
-            insertAtCursor(latexInput, symbolSelect.value);
-        });
-    }
-
-    if (insertTemplate && latexInput) {
-        insertTemplate.addEventListener('click', () => {
-            insertAtCursor(latexInput, templateSelect.value);
-        });
-    }
-
-    if (latexInput && latexOutput) {
-        latexInput.addEventListener('input', () => {
-            const latex = latexInput.value.trim();
+    if (mathField) {
+        mathField.addEventListener('input', () => {
+            const latex = mathField.value;
             latexOutput.innerHTML = '';
             if (latex) {
                 try {
@@ -433,9 +412,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (copyLatex) {
+    if (insertSymbol && mathField) {
+        insertSymbol.addEventListener('click', () => {
+            mathField.insert(symbolSelect.value, { focus: true, feedback: true });
+        });
+    }
+
+    if (insertTemplate && mathField) {
+        insertTemplate.addEventListener('click', () => {
+            mathField.insert(templateSelect.value, { focus: true, feedback: true });
+        });
+    }
+
+    if (copyLatex && mathField) {
         copyLatex.addEventListener('click', () => {
-            navigator.clipboard.writeText(latexInput.value).then(() => alert('LaTeX copiado!'));
+            navigator.clipboard.writeText(mathField.value).then(() => alert('LaTeX copiado!'));
         });
     }
 
@@ -446,9 +437,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const colorSelect = document.getElementById('color-select');
     const sizeSelect = document.getElementById('size-select');
 
-    if (formulaButton && latexInput && formulaCanvas) {
+    if (formulaButton && mathField && formulaCanvas) {
         formulaButton.addEventListener('click', () => {
-            const latex = latexInput.value.trim();
+            const latex = mathField.value.trim();
             if (!latex) return;
             try {
                 const tempDiv = document.createElement('div');
