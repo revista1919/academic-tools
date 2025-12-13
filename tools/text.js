@@ -8,6 +8,14 @@ import { autocompletion } from "@codemirror/autocomplete";
 import { latex } from "codemirror-lang-latex";
 import { bibtex } from "@citedrive/codemirror-lang-bibtex";
 
+console.log("Imports de CodeMirror completados exitosamente"); // Log para confirmar que pasa los imports
+
+// Manejo global de errores de módulos para depuración
+window.addEventListener('error', (e) => {
+  console.error('Error global (posible módulo):', e.message, e.filename);
+  if (e.filename.includes('esm.sh')) alert('Error en carga de módulo CodeMirror: ' + e.message + '. Verifica internet o versiones.');
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   console.log("tools/text.js cargado - Inicio de DOMContentLoaded");
 
