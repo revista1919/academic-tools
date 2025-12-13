@@ -53,6 +53,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const downloadMerge = document.getElementById('download-merge');
     let mergeFiles = loadSession('mergeFiles') || [];
 
+    // Fix for session: if loaded data is not actual Files, treat as empty
+    if (mergeFiles.length > 0 && !(mergeFiles[0] instanceof File)) {
+        mergeFiles = [];
+        saveSession('mergeFiles', []);
+    }
+
     if (mergeUpload) {
         mergeUpload.addEventListener('change', (e) => {
             const newFiles = Array.from(e.target.files);
@@ -81,6 +87,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const item = document.createElement('div');
                 item.textContent = `${i+1}: ${file.name}`;
                 item.draggable = true; // Drag & drop para reordenar
+                const removeBtn = document.createElement('button');
+                removeBtn.textContent = 'Eliminar';
+                removeBtn.addEventListener('click', () => {
+                    mergeFiles.splice(i, 1);
+                    saveSession('mergeFiles', mergeFiles.map(f => ({ name: f.name, size: f.size })));
+                    renderMergeList();
+                });
+                item.appendChild(removeBtn);
                 list.appendChild(item);
             });
             new Sortable(list, { animation: 150 });
@@ -89,8 +103,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (mergeButton) {
         mergeButton.addEventListener('click', async () => {
-            if (mergeFiles.length < 2) {
-                alert('Selecciona al menos dos PDFs.');
+            if (mergeFiles.length < 2 || !(mergeFiles[0] instanceof File)) {
+                alert('Selecciona al menos dos PDFs válidos. Por favor, sube los archivos nuevamente si es necesario.');
                 return;
             }
             const pdfDoc = await PDFLib.PDFDocument.create();
@@ -107,6 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             downloadMerge.style.display = 'block';
             mergeFiles = []; // Clear after merge
             saveSession('mergeFiles', []);
+            renderMergeList(); // Update list
         });
     }
 
@@ -132,6 +147,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const canvas = await renderPage(page, 0.5, rotations[i-1]);
                 canvas.dataset.pageIndex = i - 1;
                 const wrapper = document.createElement('div');
+                wrapper.style.display = 'inline-block';
+                wrapper.style.margin = '10px';
                 wrapper.appendChild(canvas);
                 // Botones dinámicos para rotate y zoom (idea propia)
                 const rotateBtn = document.createElement('button');
@@ -146,6 +163,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 zoomOut.textContent = '-';
                 zoomOut.addEventListener('click', () => zoomPage(canvas, 0.8));
                 wrapper.appendChild(zoomOut);
+                // Añadir número de página
+                const pageNumSpan = document.createElement('span');
+                pageNumSpan.textContent = `Página ${i}`;
+                pageNumSpan.style.display = 'block';
+                pageNumSpan.style.textAlign = 'center';
+                wrapper.appendChild(pageNumSpan);
                 previewReorder.appendChild(wrapper);
                 pageCanvases.push(canvas);
             }
@@ -171,7 +194,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function zoomPage(canvas, factor) {
-        canvas.style.transform = `scale(${factor})`; // Simple CSS zoom
+        const currentScale = canvas.style.transform ? parseFloat(canvas.style.transform.match(/scale\(([^)]+)\)/)[1]) : 1;
+        const newScale = currentScale * factor;
+        canvas.style.transform = `scale(${newScale})`; // Improved zoom with cumulative scaling
     }
 
     if (reorderButton) {
@@ -182,7 +207,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const newPdf = await PDFLib.PDFDocument.create();
             const children = Array.from(previewReorder.children);
             for (const wrapper of children) {
-                const canvas = wrapper.firstChild;
+                const canvas = wrapper.querySelector('canvas');
                 const index = parseInt(canvas.dataset.pageIndex);
                 const [copiedPage] = await newPdf.copyPages(pdfDoc, [index]);
                 copiedPage.setRotation(rotations[index]); // Aplicar rotation
@@ -205,6 +230,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const extractButton = document.getElementById('extract-pages'); // Nueva feature
     const saveEditedButton = document.getElementById('save-edited');
     const downloadEdited = document.getElementById('download-edited');
+    const protectButton = document.getElementById('protect-pdf'); // Premium feature
     let editPdfDoc;
     let selectedPages = new Set();
 
@@ -222,7 +248,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const canvas = await renderPage(page, 0.3);
                 canvas.dataset.pageNum = i;
                 canvas.addEventListener('click', () => toggleSelect(canvas, i-1));
-                previewEdit.appendChild(canvas);
+                const wrapper = document.createElement('div');
+                wrapper.style.display = 'inline-block';
+                wrapper.style.margin = '5px';
+                wrapper.appendChild(canvas);
+                // Añadir número de página
+                const pageNumSpan = document.createElement('span');
+                pageNumSpan.textContent = `Página ${i}`;
+                pageNumSpan.style.display = 'block';
+                pageNumSpan.style.textAlign = 'center';
+                wrapper.appendChild(pageNumSpan);
+                previewEdit.appendChild(wrapper);
             }
             saveSession('editState', Array.from(selectedPages));
         });
@@ -253,7 +289,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
             // Update previews borders
-            Array.from(previewEdit.children).forEach((canvas, i) => {
+            Array.from(previewEdit.children).forEach((wrapper, i) => {
+                const canvas = wrapper.querySelector('canvas');
                 canvas.style.border = selectedPages.has(i) ? '2px solid blue' : 'none';
             });
             alert('Rangos seleccionados.');
@@ -273,8 +310,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
             // Update previews
-            Array.from(previewEdit.children).forEach((canvas, i) => {
-                canvas.style.display = selectedPages.has(i) ? 'block' : 'none';
+            Array.from(previewEdit.children).forEach((wrapper, i) => {
+                wrapper.style.display = selectedPages.has(i) ? 'inline-block' : 'none';
             });
             alert('Páginas en blanco eliminadas de selección.');
         });
@@ -311,54 +348,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Preview simple - Enhanced con navigation buttons
-    const previewUpload = document.getElementById('pdf-upload-preview');
-    const pdfPreview = document.getElementById('pdf-preview');
-    let currentPage = 1;
-    let previewPdf;
-
-    if (previewUpload && pdfPreview) {
-        previewUpload.addEventListener('change', async () => {
-            const file = previewUpload.files[0];
-            if (!file) return;
-            const arrayBuffer = await file.arrayBuffer();
-            previewPdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-            renderPreviewPage(currentPage);
-            // Add navigation (idea propia)
-            const nav = document.createElement('div');
-            const prevBtn = document.createElement('button');
-            prevBtn.textContent = 'Anterior';
-            prevBtn.addEventListener('click', () => {
-                if (currentPage > 1) {
-                    currentPage--;
-                    renderPreviewPage(currentPage);
-                }
-            });
-            const nextBtn = document.createElement('button');
-            nextBtn.textContent = 'Siguiente';
-            nextBtn.addEventListener('click', () => {
-                if (currentPage < previewPdf.numPages) {
-                    currentPage++;
-                    renderPreviewPage(currentPage);
-                }
-            });
-            nav.appendChild(prevBtn);
-            nav.appendChild(nextBtn);
-            pdfPreview.appendChild(nav);
+    // Premium feature: Protect PDF
+    if (protectButton) {
+        protectButton.addEventListener('click', () => {
+            alert('Función premium: Protección con contraseña próximamente disponible en la versión de pago.');
         });
     }
 
-    async function renderPreviewPage(pageNum) {
-        pdfPreview.innerHTML = ''; // Clear except nav
-        const page = await previewPdf.getPage(pageNum);
-        const canvas = await renderPage(page, 1.0);
-        pdfPreview.appendChild(canvas);
+    // Preview simple - Usando visualizador nativo del navegador con embed
+    const previewUpload = document.getElementById('pdf-upload-preview');
+    const pdfPreview = document.getElementById('pdf-preview');
+
+    if (previewUpload && pdfPreview) {
+        previewUpload.addEventListener('change', () => {
+            const file = previewUpload.files[0];
+            if (!file) return;
+            pdfPreview.innerHTML = '';
+            const url = URL.createObjectURL(file);
+            const embed = document.createElement('embed');
+            embed.src = url;
+            embed.type = 'application/pdf';
+            embed.width = '100%';
+            embed.height = '600px';
+            pdfPreview.appendChild(embed);
+        });
     }
 
     // Renombrado automático - Enhanced con más metadata y fallback OCR si no hay metadata (simulado)
     const renameUpload = document.getElementById('pdf-upload-rename');
     const renameButton = document.getElementById('rename-pdf');
     const downloadRenamed = document.getElementById('download-renamed');
+    const ocrButton = document.getElementById('ocr-pdf'); // Premium feature
 
     if (renameButton && renameUpload) {
         renameButton.addEventListener('click', async () => {
@@ -383,6 +403,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             downloadRenamed.download = newName;
             downloadRenamed.style.display = 'block';
             downloadRenamed.textContent = `Descargar como ${newName}`;
+        });
+    }
+
+    // Premium feature: OCR
+    if (ocrButton) {
+        ocrButton.addEventListener('click', () => {
+            alert('Función premium: Extracción de texto vía OCR próximamente disponible en la versión de pago.');
         });
     }
 
