@@ -20,12 +20,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportResultsButton = document.getElementById('export-results');
     const undoButton = document.getElementById('undo');
     const redoButton = document.getElementById('redo');
-
     // Estado para undo/redo
     let textHistory = [];
     let historyIndex = -1;
     const MAX_HISTORY = 50;
-
     // Secciones típicas con variaciones ampliadas para ensayos y textos generales
     const sectionVariants = {
         'Title': ['Title', 'Título', 'Encabezado'],
@@ -41,7 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
         'References': ['References', 'Bibliography', 'Referencias', 'Bibliografía', 'Fuentes']
     };
     const expectedOrder = Object.keys(sectionVariants);
-
     // Recomendaciones de longitud por sección (ampliadas para ensayos)
     const lengthRecommendations = {
         'Title': { min: 5, max: 100 },
@@ -56,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
         'Conclusion': { min: 200, max: 500 },
         'References': { min: 5, max: Infinity } // Conteo de referencias
     };
-
     // Patrones de citas por estilo (sin cambios mayores, pero robustos)
     const citationPatterns = {
         'APA': {
@@ -96,7 +92,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     };
-
+    // Configuración para pdf.js (agregado para corregir el error de compatibilidad con PDF)
+    if (typeof pdfjsLib !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.338/pdf.worker.min.js';
+    }
     // Función para guardar en historia
     function saveToHistory(text) {
         if (historyIndex < textHistory.length - 1) {
@@ -106,14 +105,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (textHistory.length > MAX_HISTORY) textHistory.shift();
         historyIndex = textHistory.length - 1;
     }
-
     // Inicializar historia y editor intuitivo
     if (paperText) {
         paperText.addEventListener('input', () => {
             saveToHistory(paperText.value);
         });
         saveToHistory(paperText.value || '');
-
         // Atajos de teclado para undo/redo (Ctrl+Z / Ctrl+Y)
         paperText.addEventListener('keydown', (e) => {
             if (e.ctrlKey || e.metaKey) {
@@ -127,7 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
     // Undo / Redo
     if (undoButton) {
         undoButton.addEventListener('click', () => {
@@ -145,16 +141,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
     // Cargar archivo (TXT, MD, PDF, DOCX)
     if (fileUpload) {
         fileUpload.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-
             reader.onerror = () => alert('Error al cargar el archivo.');
-
             if (file.type === 'text/plain' || file.name.endsWith('.md')) {
                 reader.readAsText(file);
                 reader.onload = (evt) => {
@@ -197,17 +190,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
     // === Verificador de Estructura (adaptado para ensayos) ===
     if (checkStructureButton && paperText && structureResult) {
         checkStructureButton.addEventListener('click', () => {
             const text = paperText.value.trim();
             if (!text) return alert('Ingresa o carga texto primero.');
-
             const lines = text.split('\n');
             const foundSections = [];
             const sectionOrder = [];
-
             lines.forEach(line => {
                 const trimmed = line.trim();
                 if (!trimmed) return;
@@ -221,14 +211,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             });
-
             const missingSections = expectedOrder.filter(sec => !foundSections.includes(sec));
-
             let result = `<p><strong>Secciones encontradas:</strong> ${foundSections.length ? foundSections.join(', ') : 'Ninguna'}</p>`;
             if (missingSections.length) {
                 result += `<p><strong>Secciones sugeridas (adaptable a ensayos):</strong> ${missingSections.join(', ')}</p>`;
             }
-
             // Verificar orden flexible
             let orderCorrect = true;
             for (let i = 0; i < sectionOrder.length - 1; i++) {
@@ -240,24 +227,19 @@ document.addEventListener('DOMContentLoaded', () => {
             result += orderCorrect
                 ? '<p><strong>Orden de secciones:</strong> Correcto (flexible para ensayos).</p>'
                 : `<p><strong>Advertencia:</strong> El orden no sigue un flujo estándar (${expectedOrder.join(' → ')}). Ajusta según tipo de texto.</p>`;
-
             // Subsecciones
             const subSectionCount = (text.match(/^\d+\.\d+\s+/gm) || []).length;
             result += `<p><strong>Subsecciones detectadas:</strong> ${subSectionCount} (verifica consistencia).</p>`;
-
             structureResult.innerHTML = result;
         });
     }
-
     // === Detector de Inconsistencias (generalizado) ===
     if (detectInconsistenciesButton && paperText && inconsistenciesResult) {
         detectInconsistenciesButton.addEventListener('click', () => {
             const text = paperText.value.trim();
             if (!text) return alert('Ingresa texto primero.');
-
             const style = citationStyleSelect?.value || 'APA';
             const patterns = citationPatterns[style] || citationPatterns['APA'];
-
             // Citas in-text
             const inTextMatches = [...text.matchAll(patterns.inText)];
             const uniqueInText = new Set();
@@ -266,7 +248,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (c) uniqueInText.add(c);
                 });
             });
-
             // Referencias
             const refSectionMatch = text.match(/(References|Bibliography|Referencias|Bibliografía|Fuentes)\s*([\s\S]*)$/i);
             const refSection = refSectionMatch ? refSectionMatch[2] : '';
@@ -280,7 +261,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     allRefs.push(match[0]);
                 }
             });
-
             // Duplicados
             const seen = new Set();
             const duplicates = allRefs.filter(ref => {
@@ -289,15 +269,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 seen.add(key);
                 return false;
             });
-
             let result = '';
             const missingRefs = [...uniqueInText].filter(c => !uniqueRefs.has(c));
             const unusedRefs = [...uniqueRefs].filter(r => !uniqueInText.has(r));
-
             if (missingRefs.length) result += `<p><strong>Citas sin referencia:</strong> ${missingRefs.join('; ')}</p>`;
             if (unusedRefs.length) result += `<p><strong>Referencias no citadas:</strong> ${unusedRefs.join('; ')}</p>`;
             if (duplicates.length) result += `<p><strong>Referencias duplicadas:</strong> ${duplicates.length} detectadas.</p>`;
-
             // Abreviaturas sin definición
             const abbrMatches = text.match(/\b[A-Z]{2,}\b/g) || [];
             const uniqueAbbr = [...new Set(abbrMatches)];
@@ -305,7 +282,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return !new RegExp(`\\b[A-Za-z\\s]+\\s*\\(${abbr}\\)`).test(text);
             });
             if (undefinedAbbr.length) result += `<p><strong>Abreviaturas sin definición:</strong> ${undefinedAbbr.join(', ')}</p>`;
-
             // Inconsistencias ortográficas comunes (ampliado para ensayos)
             const variants = ['analyse', 'analyze', 'organisation', 'organization', 'colour', 'color', 'realise', 'realize', 'centre', 'center'];
             const inconsistencies = [];
@@ -317,22 +293,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (inconsistencies.length) result += `<p><strong>Inconsistencias ortográficas:</strong> ${inconsistencies.join('; ')}</p>`;
-
             if (!result) result = '<p>No se detectaron inconsistencias mayores.</p>';
             inconsistenciesResult.innerHTML = result;
         });
     }
-
     // === Control de Longitud (adaptado para ensayos) ===
     if (checkLengthButton && paperText && lengthResult) {
         checkLengthButton.addEventListener('click', () => {
             const text = paperText.value.trim();
             if (!text) return alert('Ingresa texto primero.');
-
             const sectionNames = Object.values(sectionVariants).flat();
             const sectionRegex = new RegExp(`^(${sectionNames.join('|')})$`, 'mgi');
             const parts = text.split(sectionRegex);
-
             let result = `<table style="width:100%; border-collapse:collapse;">
                 <thead><tr style="background:#f0f0f0;">
                     <th style="border:1px solid #ccc; padding:8px;">Sección</th>
@@ -341,7 +313,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <th style="border:1px solid #ccc; padding:8px;">Oraciones</th>
                     <th style="border:1px solid #ccc; padding:8px;">Recomendación (flexible)</th>
                 </tr></thead><tbody>`;
-
             for (let i = 1; i < parts.length; i += 2) {
                 let secName = parts[i].trim();
                 let standardName = secName;
@@ -351,14 +322,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
                     }
                 }
-
                 const content = (parts[i + 1] || '').trim();
                 if (!content) continue;
-
                 const words = content.split(/\s+/).filter(w => w.length).length;
                 const chars = content.length;
                 const sentences = content.split(/[.!?]+/).filter(s => s.trim()).length;
-
                 const rec = lengthRecommendations[standardName] || { min: 100, max: Infinity };
                 let status = 'Adecuado';
                 if (standardName === 'References') {
@@ -388,25 +356,20 @@ document.addEventListener('DOMContentLoaded', () => {
             lengthResult.innerHTML = result;
         });
     }
-
     // === Generar Reporte Completo ===
     if (generateReportButton && reportOutput) {
         generateReportButton.addEventListener('click', () => {
             checkStructureButton?.click();
             detectInconsistenciesButton?.click();
             checkLengthButton?.click();
-
             const checked = checklistContainer.querySelectorAll('input[type="checkbox"]:checked').length;
             const total = checklistContainer.querySelectorAll('input[type="checkbox"]').length;
-
             const score = 100 -
-                (structureResult.textContent?.includes('faltantes') ? 15 : 0) -
+                (structureResult.textContent?.includes('sugeridas') ? 15 : 0) -  // Corregido de 'faltantes' a 'sugeridas' para coincidir con el texto generado
                 (inconsistenciesResult.textContent?.match(/(sin|no citadas|duplicadas|sin definición)/g)?.length || 0) * 8 -
                 (lengthResult.textContent?.match(/(corto|largo|Pocas)/g)?.length || 0) * 10 +
                 (checked / total) * 30;
-
             const finalScore = Math.max(0, Math.round(score));
-
             reportOutput.innerHTML = `
                 <h3>Reporte de Revisión (Adaptado a Ensayos y Papers)</h3>
                 <p><strong>Puntuación general:</strong> ${finalScore}/100</p>
@@ -422,19 +385,16 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         });
     }
-
     // === Checklist Dinámico ===
     function updateChecklistItems() {
         document.querySelectorAll('.remove-item').forEach(btn => {
             btn.onclick = () => btn.parentElement.remove();
         });
     }
-
     if (addChecklistItemButton && newItemInput && checklistContainer) {
         addChecklistItemButton.addEventListener('click', () => {
             const text = newItemInput.value.trim();
             if (!text) return alert('Escribe el texto del nuevo ítem.');
-
             const id = 'chk-' + Date.now();
             const li = document.createElement('li');
             li.innerHTML = `
@@ -447,7 +407,6 @@ document.addEventListener('DOMContentLoaded', () => {
             updateChecklistItems();
         });
     }
-
     if (saveChecklistButton) {
         saveChecklistButton.addEventListener('click', () => {
             const items = Array.from(checklistContainer.querySelectorAll('li')).map(li => ({
@@ -459,12 +418,10 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Checklist guardado correctamente.');
         });
     }
-
     if (loadChecklistButton) {
         loadChecklistButton.addEventListener('click', () => {
             const saved = localStorage.getItem('academicChecklist');
             if (!saved) return alert('No hay checklist guardado.');
-
             const items = JSON.parse(saved);
             checklistContainer.innerHTML = '';
             items.forEach(item => {
@@ -480,7 +437,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Checklist cargado.');
         });
     }
-
     // === Exportar Reporte ===
     if (exportResultsButton && generateReportButton && reportOutput) {
         exportResultsButton.addEventListener('click', () => {
@@ -497,7 +453,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 500);
         });
     }
-
     // Inicializar eliminación de ítems existentes
     updateChecklistItems();
 });

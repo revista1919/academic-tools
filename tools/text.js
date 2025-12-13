@@ -332,38 +332,54 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Compilar
-  if (compileButton && pdfPreview) {
-    compileButton.addEventListener('click', async () => {
-      console.log("Iniciando compilación");
-      if (!preambleEditor || !mainEditor || !texlive) return;
-      const fullLatex = preambleEditor.getValue() + mainEditor.getValue();
-      const bib = bibEditor.getValue();
-      try {
-        texlive.FS.writeFile('main.tex', fullLatex);
-        if (bib) texlive.FS.writeFile('refs.bib', bib);
-        images.forEach(img => {
-          const binary = atob(img.data);
-          const array = new Uint8Array(binary.length);
-          for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
-          texlive.FS.writeFile(img.name, array);
-        });
-        await new Promise(resolve => texlive.run('pdflatex -interaction=nonstopmode main.tex', resolve));
-        if (bib) await new Promise(resolve => texlive.run('bibtex main', resolve));
-        await new Promise(resolve => texlive.run('pdflatex -interaction=nonstopmode main.tex', resolve));
-        await new Promise(resolve => texlive.run('pdflatex -interaction=nonstopmode main.tex', resolve));
-        const pdfBytes = texlive.FS.readFile('main.pdf', { encoding: 'binary' });
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        pdfPreview.src = URL.createObjectURL(blob);
-        pdfPreview.style.display = 'block';
-        console.log("Compilación completada, PDF mostrado");
-      } catch (e) {
-        console.error('Error en compilación:', e);
-        alert('Error en compilación: ' + e.message + '. Verifica si el documento tiene errores LaTeX o paquetes no soportados.');
-      }
-    });
-  }
+ // Compilar LaTeX a PDF localmente (corregido para PDFTeX actual)
+if (compileButton && pdfPreview) {
+  compileButton.addEventListener('click', async () => {
+    console.log("Iniciando compilación con PDFTeX");
+    if (!preambleEditor || !mainEditor) {
+      alert("Faltan editores");
+      return;
+    }
 
+    let pdftex;
+    try {
+      pdftex = new PDFTeX();  // Aquí está la corrección: PDFTeX en vez de TeXLive
+      console.log("PDFTeX inicializado correctamente");
+    } catch (e) {
+      console.error("Error creando PDFTeX:", e);
+      alert("Error al inicializar el compilador. Verifica que texlive.js cargue bien.");
+      return;
+    }
+
+    const fullLatex = preambleEditor.getValue() + mainEditor.getValue();
+    const bib = bibEditor ? bibEditor.getValue() : '';
+
+    try {
+      // Escribir archivos en el filesystem virtual
+      pdftex.FS.writeFile('main.tex', fullLatex);
+      if (bib) pdftex.FS.writeFile('refs.bib', bib);
+
+      images.forEach(img => {
+        const binary = atob(img.data);
+        const array = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+        pdftex.FS.writeFile(img.name, array);
+        console.log("Imagen escrita:", img.name);
+      });
+
+      // Compilar (PDFTeX maneja pdflatex + bibtex internamente si hay refs.bib)
+      console.log("Compilando LaTeX...");
+      const pdfUrl = await pdftex.compile(fullLatex);  // Devuelve data URL directamente
+
+      pdfPreview.src = pdfUrl;
+      pdfPreview.style.display = 'block';
+      console.log("¡Compilación exitosa! PDF mostrado");
+    } catch (e) {
+      console.error('Error en compilación:', e);
+      alert('Error en compilación: ' + e.message + '\nRevisa la consola para más detalles. Puede ser un error de LaTeX o paquete no soportado.');
+    }
+  });
+}
   // Export .tex
   if (exportTexButton) {
     exportTexButton.addEventListener('click', () => {
