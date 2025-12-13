@@ -399,7 +399,6 @@ document.addEventListener('DOMContentLoaded', () => {
           console.log('Encontrado constructor PDFTeX en window.Module.PDFTeX');
           return window.Module.PDFTeX;
         }
-        // algunas builds colocan la función en Module.exports o Module.pdftex
         if (window.Module.exports && typeof window.Module.exports.PDFTeX === 'function') {
           console.log('Encontrado constructor PDFTeX en window.Module.exports.PDFTeX');
           return window.Module.exports.PDFTeX;
@@ -410,7 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     } catch (e) {}
-    // Exploración amplia por seguridad: buscar cualquier global cuyo nombre sugiera pdf+tex
+    // Exploración amplia por heurística
     for (const k in window) {
       try {
         if (k && k.toLowerCase().includes('pdf') && k.toLowerCase().includes('tex') && typeof window[k] === 'function') {
@@ -422,27 +421,71 @@ document.addEventListener('DOMContentLoaded', () => {
     return null;
   }
 
-  // Intentar asegurar que PDFTeX esté definido: probar rutas comunes/candidatas
+  // Espera activa (poll) por si un script ya incluido necesita tiempo para inicializar
+  function pollForPDFTeX(timeout = 8000, interval = 300) {
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      (function loop() {
+        const ctor = findPDFTeXConstructor();
+        if (ctor) {
+          window.PDFTeX = ctor;
+          console.log('PDFTeX detectado durante poll y normalizado en window.PDFTeX');
+          return resolve();
+        }
+        if (Date.now() - start > timeout) {
+          return reject(new Error('Timeout esperando a que PDFTeX se inicialice'));
+        }
+        setTimeout(loop, interval);
+      })();
+    });
+  }
+
+  // Intentar asegurar que PDFTeX esté definido: primero detectar/esperar, luego intentar cargar candidatos
   async function ensurePDFTeX() {
     if (typeof PDFTeX !== 'undefined' && typeof PDFTeX === 'function') return;
+    // detección inmediata
+    const immediate = findPDFTeXConstructor();
+    if (immediate) {
+      window.PDFTeX = immediate;
+      return;
+    }
+
+    // dar un breve tiempo para que scripts ya cargados (p. ej. texlive.js incluido en HTML) inicialicen
+    try {
+      console.log('No hay constructor PDFTeX inmediato — iniciando poll para scripts ya incluidos');
+      await pollForPDFTeX(8000, 300);
+      return;
+    } catch (pollErr) {
+      console.warn('Poll no encontró PDFTeX rápidamente:', pollErr.message);
+      // continuar a intentar cargar candidatos externos
+    }
+
     const candidates = [
-      './texlive.js',
-      '/texlive.js',
-      // CDN fallback (puede variar según disponibilidad)
+      // priorizar la URL que ya incluyes en el HTML
+      'https://manuels.github.io/texlive.js/dist/texlive.js',
+      // otros intentos conocidos (pueden no existir en tu entorno)
       'https://unpkg.com/pdftex-wasm@latest/dist/pdftex.js',
-      'https://cdn.jsdelivr.net/npm/pdftex-wasm@latest/dist/pdftex.js'
+      'https://cdn.jsdelivr.net/npm/pdftex-wasm@latest/dist/pdftex.js',
+      // como último recurso, intentar rutas relativas (pero provocan 404 si no están presentes)
+      './texlive.js',
+      '/texlive.js'
     ];
+
     let lastErr = null;
     for (const url of candidates) {
       try {
         console.log('Intentando cargar librería desde', url);
         await loadScript(url);
-        // tras cargar, intentar encontrar constructor
-        const ctor = findPDFTeXConstructor();
-        if (ctor) {
-          // normalizar export bajo window.PDFTeX
-          window.PDFTeX = ctor;
-          console.log('PDFTeX normalizado en window.PDFTeX');
+        // tras cargar, esperar un poco a que inicialice
+        try {
+          await pollForPDFTeX(3000, 200);
+        } catch (e) {
+          // si no se inicializa enseguida, intentar detectar directamente
+          const ctor = findPDFTeXConstructor();
+          if (ctor) window.PDFTeX = ctor;
+        }
+        if (typeof window.PDFTeX === 'function') {
+          console.log('PDFTeX normalizado en window.PDFTeX tras cargar', url);
           return;
         } else {
           console.warn('Script cargado pero no se detectó constructor PDFTeX en globals tras cargar', url);
@@ -453,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Si no se encontró, dar info de depuración ligera (no exponer demasiado)
+    // Depuración mínima: listar keys relevantes
     try {
       console.info('Keys relevantes de window para depuración (resumen):');
       const sampleKeys = Object.keys(window).filter(k => /pdf|tex|texlive|module/i.test(k)).slice(0, 30);
