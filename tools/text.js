@@ -5,16 +5,82 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log("tools/text.js - Inicio de DOMContentLoaded");
 
   const templates = {
-    'APA': `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{geometry}\n\\geometry{margin=1in}\n\\usepackage{setspace}\n\\doublespacing\n\\usepackage{natbib}\n\\bibpunct{(}{)}{;}{a}{,}{,}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{amsmath}\n\\usepackage{booktabs}\n\\usepackage{caption}\n\\usepackage{subcaption}\n`,
-    'Chicago': `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{geometry}\n\\geometry{margin=1in}\n\\usepackage{chicago}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{amsmath}\n\\usepackage{booktabs}\n\\usepackage{caption}\n\\usepackage{subcaption}\n`,
-    'IEEE': `\\documentclass[conference]{IEEEtran}\n\\usepackage[utf8]{inputenc}\n\\usepackage{cite}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{amsmath}\n\\usepackage{booktabs}\n\\usepackage{caption}\n\\usepackage{subcaption}\n`,
-    'Springer': `\\documentclass{svjour3}\n\\usepackage[utf8]{inputenc}\n\\usepackage{natbib}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{amsmath}\n\\usepackage{booktabs}\n\\usepackage{caption}\n\\usepackage{subcaption}\n`,
-    'Elsevier': `\\documentclass{elsarticle}\n\\usepackage[utf8]{inputenc}\n\\usepackage{natbib}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{amsmath}\n\\usepackage{booktabs}\n\\usepackage{caption}\n\\usepackage{subcaption}\n`,
-    'Tesis Chilena': `\\documentclass{book}\n\\usepackage[spanish]{babel}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{geometry}\n\\geometry{a4paper, margin=2.5cm}\n\\usepackage{natbib}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{amsmath}\n\\usepackage{booktabs}\n\\usepackage{caption}\n\\usepackage{subcaption}\n`,
+    'APA': `\\documentclass{article}
+\\usepackage[utf8]{inputenc}
+\\usepackage{geometry}
+\\geometry{margin=1in}
+\\usepackage{setspace}
+\\doublespacing
+\\usepackage{natbib}
+\\bibpunct{(}{)}{;}{a}{,}{,}
+\\usepackage{graphicx}
+\\usepackage{hyperref}
+\\usepackage{amsmath}
+\\usepackage{booktabs}
+\\usepackage{caption}
+\\usepackage{subcaption}
+`,
+    'Chicago': `\\documentclass{article}
+\\usepackage[utf8]{inputenc}
+\\usepackage{geometry}
+\\geometry{margin=1in}
+\\usepackage{chicago}
+\\usepackage{graphicx}
+\\usepackage{hyperref}
+\\usepackage{amsmath}
+\\usepackage{booktabs}
+\\usepackage{caption}
+\\usepackage{subcaption}
+`,
+    'IEEE': `\\documentclass[conference]{IEEEtran}
+\\usepackage[utf8]{inputenc}
+\\usepackage{cite}
+\\usepackage{graphicx}
+\\usepackage{hyperref}
+\\usepackage{amsmath}
+\\usepackage{booktabs}
+\\usepackage{caption}
+\\usepackage{subcaption}
+`,
+    'Springer': `\\documentclass{svjour3}
+\\usepackage[utf8]{inputenc}
+\\usepackage{natbib}
+\\usepackage{graphicx}
+\\usepackage{hyperref}
+\\usepackage{amsmath}
+\\usepackage{booktabs}
+\\usepackage{caption}
+\\usepackage{subcaption}
+`,
+    'Elsevier': `\\documentclass{elsarticle}
+\\usepackage[utf8]{inputenc}
+\\usepackage{natbib}
+\\usepackage{graphicx}
+\\usepackage{hyperref}
+\\usepackage{amsmath}
+\\usepackage{booktabs}
+\\usepackage{caption}
+\\usepackage{subcaption}
+`,
+    'Tesis Chilena': `\\documentclass{book}
+\\usepackage[spanish]{babel}
+\\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
+\\usepackage{geometry}
+\\geometry{a4paper, margin=2.5cm}
+\\usepackage{natbib}
+\\usepackage{graphicx}
+\\usepackage{hyperref}
+\\usepackage{amsmath}
+\\usepackage{booktabs}
+\\usepackage{caption}
+\\usepackage{subcaption}
+`,
   };
+
   console.log("Templates cargados correctamente");
 
-  // Elementos del DOM
+  // Elementos DOM
   const templateSelect = document.getElementById('template-select');
   const generateStructureButton = document.getElementById('generate-structure');
   const preambleEditorElem = document.getElementById('preamble-editor');
@@ -34,51 +100,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const analyzeButton = document.getElementById('analyze-text');
   const analysisOutput = document.getElementById('analysis-output');
   const darkModeToggle = document.getElementById('dark-mode-toggle');
-  const insertSectionBtn = document.getElementById('insert-section');
-  const insertCiteBtn = document.getElementById('insert-cite');
-  const insertMathBtn = document.getElementById('insert-math');
   const insertFigureBtn = document.getElementById('insert-figure');
-  const insertTableBtn = document.getElementById('insert-table');
-  const insertBoldBtn = document.getElementById('insert-bold');
-  const insertItalicBtn = document.getElementById('insert-italic');
-  const insertItemizeBtn = document.getElementById('insert-itemize');
-  const insertEnumerateBtn = document.getElementById('insert-enumerate');
-  const insertEquationBtn = document.getElementById('insert-equation');
-  const insertHyperlinkBtn = document.getElementById('insert-hyperlink');
-  const insertFootnoteBtn = document.getElementById('insert-footnote');
-  const insertSubsectionBtn = document.getElementById('insert-subsection');
-  const insertSubsubsectionBtn = document.getElementById('insert-subsubsection');
   const importZip = document.getElementById('import-zip');
   const importTex = document.getElementById('import-tex');
   const importBib = document.getElementById('import-bib');
   const compileLog = document.getElementById('compile-log');
 
-  console.log("Elementos DOM capturados:", {
-    preambleEditorElem: !!preambleEditorElem,
-    mainEditorElem: !!mainEditorElem,
-    bibEditorElem: !!bibEditorElem
-  });
-
   let preambleEditor, mainEditor, bibEditor;
   let versions = JSON.parse(localStorage.getItem('versions')) || [];
-  console.log("Versiones cargadas del localStorage:", versions.length);
-  let images = []; // Array de {name, base64}
-  let texlive = null;
+  let images = [];
 
-// Compatibilidad: texlive.js moderno NO expone TeXLive
-if (typeof TeXLive !== 'undefined') {
-  try {
-    texlive = new TeXLive(compileLog);
-    console.log("TeXLive inicializado correctamente");
-  } catch (e) {
-    console.warn("TeXLive existe pero falló la inicialización:", e);
-  }
-} else {
-  console.info("TeXLive no está definido (normal). Se usará PDFTeX al compilar.");
-}
-
-
-  // Opciones comunes para CodeMirror 5
+  // CodeMirror options
   const editorOptions = {
     lineNumbers: true,
     matchBrackets: true,
@@ -86,10 +118,9 @@ if (typeof TeXLive !== 'undefined') {
     indentUnit: 4,
     tabSize: 4,
     indentWithTabs: false,
-    mode: "stex" // Modo LaTeX para preamble y main
+    mode: "stex"
   };
 
-  // Editor para preamble
   if (preambleEditorElem) {
     preambleEditor = CodeMirror(preambleEditorElem, {
       value: '\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{graphicx}\n',
@@ -98,7 +129,6 @@ if (typeof TeXLive !== 'undefined') {
     console.log("Preamble editor creado");
   }
 
-  // Editor principal
   if (mainEditorElem) {
     mainEditor = CodeMirror(mainEditorElem, {
       value: '\\begin{document}\nHola mundo\n\\end{document}',
@@ -108,15 +138,39 @@ if (typeof TeXLive !== 'undefined') {
     console.log("Main editor creado");
   }
 
-  // Editor para BibTeX (fallback a stex para highlight básico)
   if (bibEditorElem) {
     bibEditor = CodeMirror(bibEditorElem, {
       value: '',
       lineNumbers: true,
       matchBrackets: true,
-      mode: "stex" // Usamos stex para highlight similar
+      mode: "stex"
     });
     console.log("Bib editor creado");
+  }
+
+  function updateSidebar() {
+    if (!sidebar || !mainEditor) return;
+    sidebar.innerHTML = '<strong>Secciones:</strong><br>';
+    const lines = mainEditor.getValue().split("\n");
+    let count = 0;
+    lines.forEach((line, i) => {
+      const match = line.match(/\\(chapter|section|subsection|subsubsection){([^{}]+)}/);
+      if (match) {
+        const level = { chapter: 0, section: 1, subsection: 2, subsubsection: 3 }[match[1]];
+        const title = match[2];
+        const item = document.createElement('div');
+        item.textContent = title;
+        item.classList.add('sidebar-item');
+        item.style.paddingLeft = `${level * 15}px`;
+        item.onclick = () => {
+          mainEditor.scrollIntoView({ line: i, ch: 0 });
+          mainEditor.focus();
+        };
+        sidebar.appendChild(item);
+        count++;
+      }
+    });
+    console.log("Sidebar actualizada con", count, "items");
   }
 
   // Modo oscuro
@@ -197,32 +251,6 @@ if (typeof TeXLive !== 'undefined') {
 
   function sanitizeFilename(name) {
     return name.replace(/[^a-zA-Z0-9.-]/g, '_');
-  }
-
-  // Actualizar sidebar
-  function updateSidebar() {
-    if (!sidebar || !mainEditor) return;
-    sidebar.innerHTML = '<strong>Secciones:</strong><br>';
-    const lines = mainEditor.getValue().split("\n");
-    let count = 0;
-    lines.forEach((line, i) => {
-      const match = line.match(/\\(chapter|section|subsection|subsubsection){([^{}]+)}/);
-      if (match) {
-        const level = { chapter: 0, section: 1, subsection: 2, subsubsection: 3 }[match[1]];
-        const title = match[2];
-        const item = document.createElement('div');
-        item.textContent = title;
-        item.classList.add('sidebar-item');
-        item.style.paddingLeft = `${level * 15}px`;
-        item.onclick = () => {
-          mainEditor.scrollIntoView({ line: i, ch: 0 });
-          mainEditor.focus();
-        };
-        sidebar.appendChild(item);
-        count++;
-      }
-    });
-    console.log("Sidebar actualizada con", count, "items");
   }
 
   // Fetch BibTeX desde DOI
@@ -338,126 +366,50 @@ if (typeof TeXLive !== 'undefined') {
     });
   }
 
- // Compilar LaTeX a PDF localmente (corregido para PDFTeX actual)
-if (compileButton && pdfPreview) {
-  compileButton.addEventListener('click', async () => {
-    console.log("Iniciando compilación con PDFTeX");
-    if (!preambleEditor || !mainEditor) {
-      alert("Faltan editores");
-      return;
-    }
+  // Compilar LaTeX a PDF localmente
+  if (compileButton && pdfPreview) {
+    compileButton.addEventListener('click', async () => {
+      console.log("Iniciando compilación con PDFTeX");
+      if (!preambleEditor || !mainEditor) {
+        alert("Faltan editores");
+        return;
+      }
 
-    let pdftex;
-    try {
-      pdftex = new PDFTeX();  // Aquí está la corrección: PDFTeX en vez de TeXLive
-      console.log("PDFTeX inicializado correctamente");
-    } catch (e) {
-      console.error("Error creando PDFTeX:", e);
-      alert("Error al inicializar el compilador. Verifica que texlive.js cargue bien.");
-      return;
-    }
+      let pdftex;
+      try {
+        pdftex = new PDFTeX();
+        console.log("PDFTeX inicializado correctamente");
+      } catch (e) {
+        console.error("Error creando PDFTeX:", e);
+        alert("Error al inicializar el compilador. Verifica que texlive.js cargue bien.");
+        return;
+      }
 
-    const fullLatex = preambleEditor.getValue() + mainEditor.getValue();
-    const bib = bibEditor ? bibEditor.getValue() : '';
+      const fullLatex = preambleEditor.getValue() + mainEditor.getValue();
+      const bib = bibEditor ? bibEditor.getValue() : '';
 
-    try {
-      // Escribir archivos en el filesystem virtual
-      pdftex.FS.writeFile('main.tex', fullLatex);
-      if (bib) pdftex.FS.writeFile('refs.bib', bib);
+      try {
+        pdftex.FS.writeFile('main.tex', fullLatex);
+        if (bib) pdftex.FS.writeFile('refs.bib', bib);
 
-      images.forEach(img => {
-        const binary = atob(img.data);
-        const array = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
-        pdftex.FS.writeFile(img.name, array);
-        console.log("Imagen escrita:", img.name);
-      });
+        images.forEach(img => {
+          const binary = atob(img.data);
+          const array = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+          pdftex.FS.writeFile(img.name, array);
+          console.log("Imagen escrita:", img.name);
+        });
 
-      // Compilar (PDFTeX maneja pdflatex + bibtex internamente si hay refs.bib)
-      console.log("Compilando LaTeX...");
-      const pdfUrl = await pdftex.compile(fullLatex);  // Devuelve data URL directamente
+        console.log("Compilando LaTeX...");
+        const pdfUrl = await pdftex.compile(fullLatex);
 
-      pdfPreview.src = pdfUrl;
-      pdfPreview.style.display = 'block';
-      console.log("¡Compilación exitosa! PDF mostrado");
-    } catch (e) {
-      console.error('Error en compilación:', e);
-      alert('Error en compilación: ' + e.message + '\nRevisa la consola para más detalles. Puede ser un error de LaTeX o paquete no soportado.');
-    }
-  });
-}
-  // Export .tex
-  if (exportTexButton) {
-    exportTexButton.addEventListener('click', () => {
-      const full = preambleEditor.getValue() + mainEditor.getValue();
-      const blob = new Blob([full], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'document.tex';
-      a.click();
-      URL.revokeObjectURL(url);
+        pdfPreview.src = pdfUrl;
+        pdfPreview.style.display = 'block';
+        console.log("¡Compilación exitosa! PDF mostrado");
+      } catch (e) {
+        console.error('Error en compilación:', e);
+        alert('Error en compilación: ' + e.message + '\nRevisa la consola para más detalles. Puede ser un error de LaTeX o paquete no soportado.');
+      }
     });
   }
-
-  // Export .zip
-  if (exportZipButton) {
-    exportZipButton.addEventListener('click', async () => {
-      const zip = new JSZip();
-      zip.file('document.tex', preambleEditor.getValue() + mainEditor.getValue());
-      zip.file('refs.bib', bibEditor.getValue());
-      images.forEach(img => zip.file(img.name, atob(img.data), {base64: true}));
-      const content = await zip.generateAsync({ type: 'blob' });
-      const url = URL.createObjectURL(content);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'latex_project.zip';
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-  }
-
-  // Versiones
-  if (saveVersionButton && versionsList) {
-    saveVersionButton.addEventListener('click', () => {
-      versions.push({
-        preamble: preambleEditor.getValue(),
-        main: mainEditor.getValue(),
-        bib: bibEditor.getValue()
-      });
-      localStorage.setItem('versions', JSON.stringify(versions));
-      renderVersions();
-    });
-    renderVersions();
-  }
-
-  function renderVersions() {
-    versionsList.innerHTML = '';
-    versions.forEach((v, i) => {
-      const btn = document.createElement('button');
-      btn.textContent = `Versión ${i + 1}`;
-      btn.addEventListener('click', () => {
-        preambleEditor.setValue(v.preamble);
-        mainEditor.setValue(v.main);
-        bibEditor.setValue(v.bib);
-        updateSidebar();
-      });
-      versionsList.appendChild(btn);
-    });
-  }
-
-  // Análisis
-  if (analyzeButton && analysisOutput && mainEditor) {
-    analyzeButton.addEventListener('click', () => {
-      const text = mainEditor.getValue().replace(/\\[a-zA-Z]+/g, '').replace(/[{}[]]/g, '');
-      const words = text.split(/\s+/).filter(w => w.length > 3);
-      const freq = {};
-      words.forEach(w => freq[w] = (freq[w] || 0) + 1);
-      const reps = Object.entries(freq).filter(([, c]) => c > 5).map(([w, c]) => `${w}: ${c}`).join(', ');
-      const longSent = text.split(/[.!?]/).filter(s => s.split(/\s+/).length > 30).length;
-      analysisOutput.innerHTML = `Repeticiones frecuentes: ${reps || 'Ninguna'}<br>Oraciones largas: ${longSent}`;
-    });
-  }
-
-  console.log("tools/text.js - Fin de DOMContentLoaded");
 });
