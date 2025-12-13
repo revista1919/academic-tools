@@ -12,7 +12,7 @@
 <body>
     <header>
         <img src="assets/logoP.png" alt="Academic Tools Logo" class="logo">
-        <h1>Formateador de Referencias APA y Chicago</h1>
+        <h1>Formateador de Referencias APA, Chicago y MLA</h1>
         <nav>
             <ul>
                 <li><a href="index.html">Inicio</a></li>
@@ -26,19 +26,26 @@
     <main>
         <section>
             <h2>Formateador de Referencias</h2>
-            <p>Formatea referencias en APA, Chicago (autor-fecha) o MLA. Ingresa datos en formato: Autor| Año| Título| Journal| Volumen| Páginas| DOI</p>
+            <p>Formatea referencias en APA, Chicago (autor-fecha) o MLA. Selecciona tipo y completa los campos para preview live.</p>
+            <select id="ref-type-select">
+                <option value="article">Artículo</option>
+                <option value="book">Libro</option>
+                <option value="website">Sitio Web</option>
+            </select>
             <select id="style-select">
                 <option value="apa">APA</option>
                 <option value="chicago">Chicago</option>
                 <option value="mla">MLA</option>
             </select>
-            <textarea id="ref-input" placeholder="Ingresa datos de referencia separados por | ..."></textarea>
-            <button id="format-ref">Formatear</button>
+            <div id="ref-form-container" class="ref-form"></div>
+            <div id="live-preview" class="preview"></div>
+            <button id="format-ref">Formatear Final</button>
             <div id="formatted-ref"></div>
+            <button id="copy-single">Copiar</button>
         </section>
         <section>
             <h2>Conversión entre Estilos</h2>
-            <p>Convierte una referencia formateada de un estilo a otro.</p>
+            <p>Convierte una referencia formateada de un estilo a otro. Soporta artículos, libros y sitios web.</p>
             <select id="from-style">
                 <option value="apa">De APA</option>
                 <option value="chicago">De Chicago</option>
@@ -52,25 +59,36 @@
             <textarea id="conv-input" placeholder="Pega referencia formateada..."></textarea>
             <button id="convert-style">Convertir</button>
             <div id="converted-ref"></div>
+            <button id="copy-conv">Copiar</button>
         </section>
         <section>
             <h2>Generador de Bibliografía</h2>
-            <p>Genera una bibliografía desde múltiples referencias en texto plano.</p>
-            <textarea id="bib-input" placeholder="Ingresa múltiples referencias, una por línea en formato Autor| Año| etc."></textarea>
+            <p>Genera una bibliografía dinámica. Agrega entradas, edita y ordena.</p>
+            <button id="add-ref">Agregar Referencia</button>
+            <input type="file" id="import-bib" accept=".txt" style="display: inline-block;">
+            <div id="bib-list-container"></div>
             <select id="bib-style">
                 <option value="apa">APA</option>
                 <option value="chicago">Chicago</option>
                 <option value="mla">MLA</option>
             </select>
+            <select id="sort-select">
+                <option value="author">Ordenar por Autor</option>
+                <option value="year">Ordenar por Año</option>
+                <option value="title">Ordenar por Título</option>
+            </select>
             <button id="generate-bib">Generar Bibliografía</button>
             <div id="bib-output"></div>
+            <button id="export-bib">Exportar a TXT</button>
+            <button id="copy-bib">Copiar Todo</button>
         </section>
         <section>
             <h2>Limpieza de Referencias</h2>
-            <p>Limpia referencias mal copiadas, eliminando ruido.</p>
+            <p>Limpia referencias mal copiadas, eliminando ruido y extrayendo campos si posible.</p>
             <textarea id="clean-ref-input" placeholder="Pega referencia sucia..."></textarea>
             <button id="clean-ref">Limpiar</button>
             <div id="cleaned-ref"></div>
+            <button id="copy-clean">Copiar</button>
         </section>
     </main>
     <footer>
