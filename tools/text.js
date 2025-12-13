@@ -3,7 +3,7 @@
 import { EditorView } from "@codemirror/view";
 import { basicSetup } from "@codemirror/basic-setup";
 import { EditorState } from "@codemirror/state";
-import { autocomplete } from "@codemirror/autocomplete";
+import { autocompletion } from "@codemirror/autocomplete";
 import { latex } from "codemirror-lang-latex";
 import { bibtex } from "@citedrive/codemirror-lang-bibtex";
 
@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
             doc: '\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{graphicx}\n',
             extensions: [
                 basicSetup,
-                autocomplete,
+                autocompletion(),
                 latex({ biblatex: false, smartSuggest: true, syntaxLinter: true })
             ]
         });
@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
             doc: '\\begin{document}\nHola mundo\n\\end{document}',
             extensions: [
                 basicSetup,
-                autocomplete,
+                autocompletion(),
                 latex({ biblatex: false, smartSuggest: true, syntaxLinter: true }),
                 updateListener
             ]
@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
             doc: '',
             extensions: [
                 basicSetup,
-                autocomplete,
+                autocompletion(),
                 bibtex({ biblatex: false, smartSuggest: true, syntaxLinter: true })
             ]
         });
@@ -113,8 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
         darkModeToggle.addEventListener('click', () => {
             document.body.classList.toggle('dark');
             const theme = document.body.classList.contains('dark') ? EditorView.theme({ "&": { backgroundColor: "#1e1e1e", color: "#fff" } }) : EditorView.theme({ "&": { backgroundColor: "#fff", color: "#000" } });
-            preambleEditor.dispatch({ effects: EditorView.updateListener.of(() => {}) }); // Actualiza tema, pero CM6 necesita extensión personal para tema
-            // Nota: Para tema completo, agregar extensión theme en extensions
             localStorage.setItem('darkMode', document.body.classList.contains('dark'));
         });
         if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark');

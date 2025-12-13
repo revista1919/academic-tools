@@ -4,6 +4,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const math = window.math;
     const Chart = window.Chart;
     const Tesseract = window.Tesseract;
+    const iink = window.iink;
+
+    // Inicializar Tesseract con traineddata para math
+    Tesseract.createWorker('eng+equ', 1, {
+        workerPath: 'https://unpkg.com/tesseract.js@v5/dist/worker.min.js',
+        langPath: 'https://tesseract.projectnaptha.com/langs/',
+        corePath: 'https://unpkg.com/tesseract.js-core@v5/tesseract-core.wasm.js',
+    }).then(worker => {
+        window.tesseractWorker = worker;
+    });
 
     // Render LaTeX en tiempo real con editor visual usando MathLive
     const mathField = document.getElementById('math-field');
@@ -430,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Fórmula a imagen con opciones
+    // Fórmula a imagen con opciones, fix para generación
     const formulaButton = document.getElementById('formula-to-image');
     const formulaCanvas = document.getElementById('formula-canvas');
     const downloadImage = document.getElementById('download-image');
@@ -443,10 +453,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!latex) return;
             try {
                 const tempDiv = document.createElement('div');
+                tempDiv.style.position = 'absolute';
+                tempDiv.style.left = '-9999px';
+                document.body.appendChild(tempDiv);
                 const options = { throwOnError: true, output: 'html', color: colorSelect.value, fontSize: parseInt(sizeSelect.value) };
                 katex.render(latex, tempDiv, options);
                 const mathElement = tempDiv.querySelector('.katex-html');
-                html2canvas(mathElement, { scale: 2 }).then(canvas => {
+                html2canvas(mathElement, { scale: 2, backgroundColor: null }).then(canvas => {
                     formulaCanvas.width = canvas.width;
                     formulaCanvas.height = canvas.height;
                     formulaCanvas.getContext('2d').drawImage(canvas, 0, 0);
@@ -454,6 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     downloadImage.href = dataUrl;
                     downloadImage.download = 'formula.png';
                     downloadImage.style.display = 'block';
+                    document.body.removeChild(tempDiv);
                 });
             } catch (e) {
                 alert(`Error generando imagen: ${e.message}`);
@@ -487,7 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!file) return;
             ocrOutput.textContent = 'Procesando...';
             const url = URL.createObjectURL(file);
-            Tesseract.recognize(url, 'eng+math_equ_traineddata', { logger: m => console.log(m) }).then(({ data: { text } }) => {
+            window.tesseractWorker.recognize(url).then(({ data: { text } }) => {
                 ocrOutput.textContent = text.trim();
                 try {
                     katex.render(text, ocrPreview, { throwOnError: false });
@@ -514,110 +528,55 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Handwriting recognition: Dibujo en canvas mejorado con soporte táctil y herramientas básicas
-    const drawCanvas = document.getElementById('draw-canvas');
-    const clearDraw = document.getElementById('clear-draw');
-    const ocrDrawButton = document.getElementById('ocr-draw');
-    const drawOutput = document.getElementById('draw-output');
-    const drawPreview = document.getElementById('draw-preview');
-    const copyDraw = document.getElementById('copy-draw');
-    const importDraw = document.getElementById('import-draw-to-editor');
-    const drawColor = document.getElementById('draw-color');
-    const drawThickness = document.getElementById('draw-thickness');
-    let drawing = false;
+    // Handwriting recognition con iinkJS para math
+    const handwritingCanvas = document.getElementById('handwriting-canvas');
+    const clearHandwriting = document.getElementById('clear-handwriting');
+    const recognizeButton = document.getElementById('recognize-handwriting');
+    const handwritingOutput = document.getElementById('handwriting-output');
+    const handwritingPreview = document.getElementById('handwriting-preview');
+    const copyHandwriting = document.getElementById('copy-handwriting');
+    const importHandwriting = document.getElementById('import-handwriting-to-editor');
 
-    if (drawCanvas) {
-        const ctx = drawCanvas.getContext('2d');
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = 'black';
-        ctx.lineCap = 'round';
+    if (handwritingCanvas) {
+        const editor = iink.register(handwritingCanvas, {
+            recognitionParams: {
+                type: 'MATH',
+                protocol: 'WEBSOCKET',
+                server: {
+    scheme: 'https',
+    host: 'cloud.myscript.com',
+    applicationKey: '75728c88-1557-4fc6-a309-ebebf286c710',
+    hmacKey: 'ee706c42-6fb5-4333-88b7-abfcbe30c2aa'
+}
 
-        function startDrawing(e) {
-            drawing = true;
-            ctx.beginPath();
-            const {x, y} = getPosition(e);
-            ctx.moveTo(x, y);
-            e.preventDefault();
-        }
-
-        function draw(e) {
-            if (!drawing) return;
-            const {x, y} = getPosition(e);
-            ctx.lineTo(x, y);
-            ctx.stroke();
-            e.preventDefault();
-        }
-
-        function stopDrawing(e) {
-            drawing = false;
-            e.preventDefault();
-        }
-
-        function getPosition(e) {
-            const rect = drawCanvas.getBoundingClientRect();
-            if (e.touches) {
-                return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
             }
-            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-        }
-
-        drawCanvas.addEventListener('mousedown', startDrawing);
-        drawCanvas.addEventListener('mousemove', draw);
-        drawCanvas.addEventListener('mouseup', stopDrawing);
-        drawCanvas.addEventListener('mouseout', stopDrawing);
-
-        drawCanvas.addEventListener('touchstart', startDrawing);
-        drawCanvas.addEventListener('touchmove', draw);
-        drawCanvas.addEventListener('touchend', stopDrawing);
-    }
-
-    if (drawColor) {
-        drawColor.addEventListener('change', () => {
-            drawCanvas.getContext('2d').strokeStyle = drawColor.value;
         });
-    }
 
-    if (drawThickness) {
-        drawThickness.addEventListener('change', () => {
-            drawCanvas.getContext('2d').lineWidth = drawThickness.value;
-        });
-    }
-
-    if (clearDraw) {
-        clearDraw.addEventListener('click', () => {
-            const ctx = drawCanvas.getContext('2d');
-            ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-        });
-    }
-
-    if (ocrDrawButton) {
-        ocrDrawButton.addEventListener('click', () => {
-            drawOutput.textContent = 'Procesando...';
-            drawCanvas.toBlob(blob => {
-                const url = URL.createObjectURL(blob);
-                Tesseract.recognize(url, 'eng+math_equ_traineddata').then(({ data: { text } }) => {
-                    drawOutput.textContent = text.trim();
-                    try {
-                        katex.render(text, drawPreview, { throwOnError: false });
-                    } catch {
-                        drawPreview.innerHTML = '<span class="error">No se pudo renderizar. Edita.</span>';
-                    }
-                }).catch(err => {
-                    drawOutput.textContent = `Error: ${err.message}`;
-                });
+        recognizeButton.addEventListener('click', () => {
+            editor.export_('text/latex').then(latex => {
+                handwritingOutput.textContent = latex;
+                try {
+                    katex.render(latex, handwritingPreview, { throwOnError: false });
+                } catch {
+                    handwritingPreview.innerHTML = '<span class="error">No se pudo renderizar.</span>';
+                }
             });
         });
-    }
 
-    if (copyDraw) {
-        copyDraw.addEventListener('click', () => {
-            navigator.clipboard.writeText(drawOutput.textContent).then(() => alert('Texto dibujado copiado!'));
+        clearHandwriting.addEventListener('click', () => {
+            editor.clear();
         });
     }
 
-    if (importDraw && mathField) {
-        importDraw.addEventListener('click', () => {
-            mathField.value = drawOutput.textContent;
+    if (copyHandwriting) {
+        copyHandwriting.addEventListener('click', () => {
+            navigator.clipboard.writeText(handwritingOutput.textContent).then(() => alert('Texto reconocido copiado!'));
+        });
+    }
+
+    if (importHandwriting && mathField) {
+        importHandwriting.addEventListener('click', () => {
+            mathField.value = handwritingOutput.textContent;
             mathField.focus();
             mathField.dispatchEvent(new Event('input'));
         });
@@ -690,32 +649,62 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Graficador de funciones
-    const functionInput = document.getElementById('function-input');
+    // Graficador de funciones mejorado con rango, múltiples funciones y MathLive input
+    const functionField = document.getElementById('function-field');
+    const xMinInput = document.getElementById('x-min');
+    const xMaxInput = document.getElementById('x-max');
+    const stepsInput = document.getElementById('steps');
     const plotButton = document.getElementById('plot-function');
     const plotCanvas = document.getElementById('plot-canvas');
 
-    if (plotButton && functionInput && plotCanvas) {
+    if (plotButton && functionField && plotCanvas) {
         let chart;
         plotButton.addEventListener('click', () => {
-            const func = functionInput.value.trim();
-            if (!func) return;
-            const xValues = Array.from({length: 100}, (_, i) => i / 10 - 5);
-            const yValues = xValues.map(x => {
-                try {
-                    return math.evaluate(func.replace(/x/g, `(${x})`));
-                } catch {
-                    return null;
-                }
+            const funcs = functionField.value.trim().split(';').map(f => f.trim());
+            if (!funcs.length) return;
+            const xMin = parseFloat(xMinInput.value) || -5;
+            const xMax = parseFloat(xMaxInput.value) || 5;
+            const steps = parseInt(stepsInput.value) || 100;
+            const stepSize = (xMax - xMin) / steps;
+            const xValues = Array.from({length: steps + 1}, (_, i) => xMin + i * stepSize);
+            const datasets = funcs.map((func, index) => {
+                const yValues = xValues.map(x => {
+                    try {
+                        return math.evaluate(func.replace(/x/g, `(${x})`));
+                    } catch {
+                        return null;
+                    }
+                });
+                return {
+                    label: func,
+                    data: yValues,
+                    borderColor: ['blue', 'red', 'green', 'orange'][index % 4],
+                    fill: false
+                };
             });
             if (chart) chart.destroy();
             chart = new Chart(plotCanvas, {
                 type: 'line',
                 data: {
                     labels: xValues,
-                    datasets: [{ label: func, data: yValues, borderColor: 'blue', fill: false }]
+                    datasets: datasets
                 },
-                options: { scales: { x: { title: { display: true, text: 'x' } }, y: { title: { display: true, text: 'y' } } } }
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'x' } },
+                        y: { title: { display: true, text: 'y' } }
+                    },
+                    plugins: {
+                        zoom: {
+                            zoom: {
+                                wheel: { enabled: true },
+                                pinch: { enabled: true },
+                                mode: 'xy'
+                            },
+                            pan: { enabled: true, mode: 'xy' }
+                        }
+                    }
+                }
             });
         });
     }
