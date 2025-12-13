@@ -4,13 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editor LaTeX Académico - Academic Tools</title>
-    <meta name="description" content="Editor LaTeX como Overleaf o VS Code, con gestión de referencias BibTeX, sidebar de navegación, inserciones rápidas, atajos de teclado, diseñador visual de tablas, ecuaciones con vista previa, conteo de palabras, buscar/reemplazar y análisis. Todo en navegador, sin servidores.">
-    <meta name="keywords" content="editor latex browser, herramientas academic overleaf alternativo, gratis ético">
+    <meta name="description" content="Editor LaTeX WYSIWYG con edición visual de tablas, ecuaciones, texto enriquecido, sidebar de navegación, inserciones rápidas, atajos de teclado, y exportación a servicios online para compilación. Todo en navegador, sin servidores.">
+    <meta name="keywords" content="editor latex wysiwyg browser, herramientas academic overleaf alternativo, gratis ético">
     <link rel="stylesheet" href="styles.css">
     <!-- CSS de CodeMirror 5 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
     <!-- MathJax for equation preview -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js" async></script>
+    <!-- QuillJS for rich text -->
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
     <style>
         body { font-family: system-ui, sans-serif; margin: 20px; background: #f9f9f9; }
         .dark { background: #1e1e1e; color: #fff; }
@@ -48,12 +51,19 @@
         td input { width: 100%; box-sizing: border-box; }
         #equation-preview { margin: 20px 0; border: 1px solid #ddd; padding: 10px; }
         #word-count { font-weight: bold; margin: 10px; }
+        /* Cards for online compilers */
+        .compiler-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
+        .compiler-card h3 { margin: 0 0 10px; }
+        .compiler-card button { background: #007acc; color: #fff; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        .compiler-card button:hover { background: #005f99; }
+        .dark .compiler-card { background: #333; border-color: #555; color: #fff; }
+        #rich-text-editor { height: 300px; }
     </style>
 </head>
 <body>
     <header>
         <img src="assets/logoP.png" alt="Academic Tools Logo" class="logo">
-        <h1>Editor LaTeX Académico Gratuito</h1>
+        <h1>Editor LaTeX Académico Gratuito - Modo WYSIWYG</h1>
         <nav>
             <ul>
                 <li><a href="index.html">Inicio</a></li>
@@ -67,15 +77,11 @@
     <main>
         <section>
             <h2>Guía Rápida para Empezar</h2>
-            <p>1. Selecciona una plantilla y haz clic en "Generar Estructura" para crear un proyecto base.</p>
-            <p>2. Edita el preamble para agregar paquetes, el cuerpo principal para el contenido, y las referencias BibTeX.</p>
-            <p>3. Usa los botones de inserción para agregar elementos comunes rápidamente. Para imágenes, usa "Insertar Figura".</p>
-            <p>4. Usa el diseñador visual de tablas y ecuaciones para crear contenido de manera intuitiva y generar el código LaTeX.</p>
-            <p>5. Usa atajos de teclado para inserciones rápidas (e.g., Ctrl-S para sección, Ctrl-T para tabla visual, Ctrl-Q para ecuación visual).</p>
-            <p>6. Conteo de palabras en tiempo real, buscar/reemplazar, y análisis de texto.</p>
-            <p>7. Exporta como .tex o .zip completo.</p>
-            <p>8. Guarda versiones para restaurar cambios.</p>
-            <p>Nota: Para más flexibilidad, puedes editar el código directamente.</p>
+            <p>1. Selecciona una plantilla y genera la estructura base.</p>
+            <p>2. Edita visualmente tablas, ecuaciones y texto enriquecido con modales WYSIWYG.</p>
+            <p>3. Usa atajos de teclado (Ctrl-R para texto enriquecido, Ctrl-Q para ecuaciones, Ctrl-T para tablas).</p>
+            <p>4. Exporta a LaTeX o ZIP, y compila online en servicios como Overleaf o TeXPage.</p>
+            <p>5. Conteo de palabras en tiempo real, buscar/reemplazar, versiones y análisis.</p>
         </section>
         <section>
             <h2>Selecciona Plantilla y Genera Proyecto</h2>
@@ -142,6 +148,7 @@
             <button id="insert-visual-table">Tabla Visual</button>
             <button id="insert-table">Tabla Simple</button>
             <button id="insert-visual-equation">Ecuación Visual</button>
+            <button id="insert-rich-text">Texto Enriquecido Visual</button>
             <button id="insert-bold">Negrita</button>
             <button id="insert-italic">Cursiva</button>
             <button id="insert-emph">Énfasis</button>
@@ -191,7 +198,38 @@
             <div id="bib-editor" class="editor-container"></div>
         </section>
         <section>
-            <h2>Exportación del Proyecto</h2>
+            <h2>Compilación Online</h2>
+            <p>Exporta tu documento y compílalo en servicios online. Copia el LaTeX y pégalo en el editor del servicio.</p>
+            <div style="display: flex; flex-wrap: wrap; justify-content: center;">
+                <div class="compiler-card">
+                    <h3>Overleaf</h3>
+                    <p>Editor colaborativo en la nube con previsualización en tiempo real.</p>
+                    <button id="export-to-overleaf">Exportar a Overleaf</button>
+                </div>
+                <div class="compiler-card">
+                    <h3>TeXPage</h3>
+                    <p>Compilador rápido y simple para documentos LaTeX.</p>
+                    <button id="export-to-texpage">Exportar a TeXPage</button>
+                </div>
+                <div class="compiler-card">
+                    <h3>Papeeria</h3>
+                    <p>Plataforma con soporte para Git y colaboración.</p>
+                    <button id="export-to-papeeria">Exportar a Papeeria</button>
+                </div>
+                <div class="compiler-card">
+                    <h3>CoCalc</h3>
+                    <p>Entorno computacional con LaTeX y Jupyter.</p>
+                    <button id="export-to-cocalc">Exportar a CoCalc</button>
+                </div>
+                <div class="compiler-card">
+                    <h3>LaTeX Online</h3>
+                    <p>Compilador instantáneo sin registro.</p>
+                    <button id="export-to-latexonline">Exportar a LaTeX Online</button>
+                </div>
+            </div>
+        </section>
+        <section>
+            <h2>Exportación Local del Proyecto</h2>
             <button id="export-tex">Descargar .tex</button>
             <button id="export-zip">Descargar Proyecto .zip</button>
         </section>
@@ -229,6 +267,15 @@
             <input type="text" id="equation-input" placeholder="Escribe LaTeX matemático aquí...">
             <div id="equation-preview"></div>
             <button id="insert-equation-code">Insertar Código LaTeX</button>
+        </div>
+    </div>
+    <!-- Modal para texto enriquecido -->
+    <div id="rich-text-modal" class="modal">
+        <div class="modal-content">
+            <span id="close-rich-text-modal" class="close">&times;</span>
+            <h2>Editor Visual de Texto Enriquecido</h2>
+            <div id="rich-text-editor"></div>
+            <button id="insert-rich-text-code">Insertar Código LaTeX</button>
         </div>
     </div>
     <!-- Modal para buscar/reemplazar -->

@@ -123,8 +123,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const findReplaceModal = document.getElementById('find-replace-modal');
   const closeFindReplaceModalBtn = document.getElementById('close-find-replace-modal');
   const performFindReplaceBtn = document.getElementById('perform-find-replace');
+  const richTextEditorElem = document.getElementById('rich-text-editor');
+  const insertRichTextBtn = document.getElementById('insert-rich-text');
+  const richTextModal = document.getElementById('rich-text-modal');
+  const closeRichTextModalBtn = document.getElementById('close-rich-text-modal');
+  const insertRichTextCodeBtn = document.getElementById('insert-rich-text-code');
+  const overleafExportBtn = document.getElementById('export-to-overleaf');
+  const texpageExportBtn = document.getElementById('export-to-texpage');
+  const papeeriaExportBtn = document.getElementById('export-to-papeeria');
+  const cocalcExportBtn = document.getElementById('export-to-cocalc');
+  const latexOnlineExportBtn = document.getElementById('export-to-latexonline');
 
-  let preambleEditor, mainEditor, bibEditor;
+  let preambleEditor, mainEditor, bibEditor, quill;
   let versions = JSON.parse(localStorage.getItem('versions')) || [];
   let images = [];
 
@@ -170,6 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
       "Ctrl-Alt-Lim": () => insertAtCursor(mainEditor, '\\lim'),
       "Ctrl-Alt-Inf": () => insertAtCursor(mainEditor, '\\infty'),
       "Ctrl-Q": () => openVisualEquationModal(),
+      "Ctrl-R": () => openRichTextModal(),
       "Ctrl-Z": "undo",
       "Ctrl-Y": "redo",
       "Ctrl-Find": () => openFindReplaceModal()
@@ -204,6 +215,29 @@ document.addEventListener('DOMContentLoaded', () => {
       mode: "stex"
     });
     console.log("Bib editor creado");
+  }
+
+  // Inicializar Quill para editor de texto enriquecido
+  if (richTextEditorElem) {
+    quill = new Quill(richTextEditorElem, {
+      theme: 'snow',
+      modules: {
+        toolbar: [
+          ['bold', 'italic', 'underline', 'strike'],
+          ['blockquote', 'code-block'],
+          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+          [{ 'script': 'sub'}, { 'script': 'super' }],
+          [{ 'indent': '-1'}, { 'indent': '+1' }],
+          [{ 'direction': 'rtl' }],
+          [{ 'size': ['small', false, 'large', 'huge'] }],
+          [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+          [{ 'color': [] }, { 'background': [] }],
+          [{ 'font': [] }],
+          [{ 'align': [] }],
+          ['clean']
+        ]
+      }
+    });
   }
 
   function updateSidebar() {
@@ -243,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
     darkModeToggle.addEventListener('click', () => {
       document.body.classList.toggle('dark');
       localStorage.setItem('darkMode', document.body.classList.contains('dark'));
-      [preambleEditor, mainEditor, bibEditor].forEach(ed => ed.refresh());
+      [preambleEditor, mainEditor, bibEditor].forEach(ed => ed ? ed.refresh() : null);
       console.log("Modo oscuro toggled");
     });
     if (localStorage.getItem('darkMode') === 'true') {
@@ -344,6 +378,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (findReplaceBtn) findReplaceBtn.addEventListener('click', openFindReplaceModal);
 
+  if (insertRichTextBtn) insertRichTextBtn.addEventListener('click', openRichTextModal);
+
   function insertAtCursor(editor, text) {
     if (!editor) return;
     const cursor = editor.getCursor();
@@ -428,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tableColsInput.value = '';
   }
 
-  // Visual Equation Designer (using MathJax for preview)
+  // Visual Equation Designer
   function openVisualEquationModal() {
     if (equationModal) equationModal.style.display = 'block';
     equationPreview.innerHTML = '';
@@ -460,6 +496,54 @@ document.addEventListener('DOMContentLoaded', () => {
     if (equationModal) equationModal.style.display = 'none';
     equationInput.value = '';
     equationPreview.innerHTML = '';
+  }
+
+  // Rich Text Modal
+  function openRichTextModal() {
+    if (richTextModal) richTextModal.style.display = 'block';
+    quill.setContents([]); // Limpiar contenido
+  }
+
+  if (insertRichTextCodeBtn) {
+    insertRichTextCodeBtn.addEventListener('click', () => {
+      const delta = quill.getContents();
+      const latexText = deltaToLatex(delta);
+      insertAtCursor(mainEditor, latexText);
+      closeRichTextModal();
+    });
+  }
+
+  function deltaToLatex(delta) {
+    let latex = '';
+    delta.ops.forEach(op => {
+      if (op.insert) {
+        let text = op.insert;
+        if (op.attributes) {
+          if (op.attributes.bold) text = `\\textbf{${text}}`;
+          if (op.attributes.italic) text = `\\textit{${text}}`;
+          if (op.attributes.underline) text = `\\underline{${text}}`;
+          // Agregar más mapeos según sea necesario: listas, etc.
+          if (op.attributes.list === 'bullet') {
+            latex += '\\begin{itemize}\n\\item ' + text + '\n\\end{itemize}\n';
+            return;
+          }
+          if (op.attributes.list === 'ordered') {
+            latex += '\\begin{enumerate}\n\\item ' + text + '\n\\end{enumerate}\n';
+            return;
+          }
+        }
+        latex += text;
+      }
+    });
+    return latex;
+  }
+
+  if (closeRichTextModalBtn) {
+    closeRichTextModalBtn.addEventListener('click', closeRichTextModal);
+  }
+
+  function closeRichTextModal() {
+    if (richTextModal) richTextModal.style.display = 'none';
   }
 
   // Find and Replace
@@ -672,6 +756,21 @@ document.addEventListener('DOMContentLoaded', () => {
       a.click();
     });
   }
+
+  // Export to online compilers (simulated with prompt to copy LaTeX)
+  function exportToOnline(serviceUrl) {
+    const fullTex = preambleEditor.getValue() + '\n\\begin{document}\n' + mainEditor.getValue() + '\n\\end{document}';
+    navigator.clipboard.writeText(fullTex).then(() => {
+      alert('Código LaTeX copiado al portapapeles. Pégalo en el editor de ' + serviceUrl);
+      window.open(serviceUrl, '_blank');
+    });
+  }
+
+  if (overleafExportBtn) overleafExportBtn.addEventListener('click', () => exportToOnline('https://www.overleaf.com/project/new'));
+  if (texpageExportBtn) texpageExportBtn.addEventListener('click', () => exportToOnline('https://texpage.com/'));
+  if (papeeriaExportBtn) papeeriaExportBtn.addEventListener('click', () => exportToOnline('https://www.papeeria.com/'));
+  if (cocalcExportBtn) cocalcExportBtn.addEventListener('click', () => exportToOnline('https://cocalc.com/'));
+  if (latexOnlineExportBtn) latexOnlineExportBtn.addEventListener('click', () => exportToOnline('https://latexonline.cc/'));
 
   // Análisis de texto
   if (analyzeButton && analysisOutput) {
