@@ -26,7 +26,7 @@
         .sidebar { float: left; width: 200px; padding: 10px; border-right: 1px solid #ddd; }
         .sidebar-item { cursor: pointer; margin-bottom: 5px; }
         iframe { width: 100%; height: 500px; display: none; }
-        textarea { display: none; } /* Oculta textareas base para CodeMirror */
+        #compile-log { display: none; }
     </style>
 </head>
 <body>
@@ -58,17 +58,35 @@
             <button id="generate-structure">Generar Estructura</button>
         </section>
         <section>
+            <h2>Importar Proyecto o Archivos</h2>
+            <p>Carga proyectos completos desde .zip o archivos individuales.</p>
+            <label for="import-zip">Importar .zip:</label>
+            <input type="file" id="import-zip" accept=".zip">
+            <label for="import-tex">Importar .tex:</label>
+            <input type="file" id="import-tex" accept=".tex">
+            <label for="import-bib">Importar .bib:</label>
+            <input type="file" id="import-bib" accept=".bib">
+        </section>
+        <section>
             <h2>Editor de Preamble (Paquetes y Configuración)</h2>
-            <div id="preamble-editor" class="editor-container">
-                <textarea id="preamble-editor-textarea"></textarea>
-            </div>
+            <div id="preamble-editor" class="editor-container"></div>
         </section>
         <section>
             <h2>Editor Principal LaTeX (Cuerpo del Documento)</h2>
             <div id="sidebar"></div>
-            <div id="main-editor" class="editor-container">
-                <textarea id="main-editor-textarea"></textarea>
-            </div>
+            <div id="main-editor" class="editor-container"></div>
+        </section>
+        <section>
+            <h2>Herramientas Simples para LaTeX</h2>
+            <button id="insert-section">Insertar Sección</button>
+            <button id="insert-cite">Insertar Cita</button>
+            <button id="insert-math">Insertar Matemáticas</button>
+            <button id="insert-figure">Insertar Figura</button>
+            <button id="insert-table">Insertar Tabla</button>
+            <button id="insert-bold">Negrita</button>
+            <button id="insert-italic">Cursiva</button>
+            <button id="insert-itemize">Lista con Puntos</button>
+            <button id="insert-enumerate">Lista Numerada</button>
         </section>
         <section>
             <h2>Editor de Referencias BibTeX</h2>
@@ -77,15 +95,14 @@
             <button id="fetch-bib">Añadir desde DOI</button>
             <input type="text" id="isbn-input" placeholder="Ingresa ISBN (e.g., 978-3-16-148410-0)">
             <button id="fetch-isbn">Añadir desde ISBN</button>
-            <div id="bib-editor" class="editor-container">
-                <textarea id="bib-editor-textarea"></textarea>
-            </div>
+            <div id="bib-editor" class="editor-container"></div>
         </section>
         <section>
             <h2>Compilación y Vista Previa PDF</h2>
             <p>Compila localmente y ve el PDF generado.</p>
             <button id="compile-pdf">Compilar a PDF</button>
             <iframe id="pdf-preview"></iframe>
+            <div id="compile-log"></div>
         </section>
         <section>
             <h2>Exportación del Proyecto</h2>
@@ -104,12 +121,6 @@
             <button id="analyze-text">Analizar Documento</button>
             <div id="analysis-output"></div>
         </section>
-        <section>
-            <h2>Herramientas de Escritura "IA" Simples</h2>
-            <p>Expande o reescribe selecciones (basado en reglas simples).</p>
-            <button id="expand-paragraph">Expandir Selección</button>
-            <button id="rewrite-intro">Reescribir como Introducción</button>
-        </section>
         <button id="dark-mode-toggle">Alternar Modo Oscuro</button>
     </main>
     <footer>
@@ -117,7 +128,7 @@
     </footer>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script src="https://manuels.github.io/texlive.js/dist/pdftex.js"></script>
+    <script src="https://manuels.github.io/texlive.js/dist/texlive.js"></script>
     <script type="module" src="app.js"></script>
     <script type="module" src="tools/text.js"></script>
 </body>

@@ -7,15 +7,14 @@ import { bibtex } from "@citedrive/codemirror-lang-bibtex";
 
 document.addEventListener('DOMContentLoaded', () => {
     const templates = {
-        'APA': `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{geometry}\n\\geometry{margin=1in}\n\\usepackage{setspace}\n\\doublespacing\n\\usepackage{natbib}\n\\bibpunct{(}{)}{;}{a}{,}{,}\n`,
-        'Chicago': `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{geometry}\n\\geometry{margin=1in}\n\\usepackage{chicago}\n`,
-        'IEEE': `\\documentclass[conference]{IEEEtran}\n\\usepackage[utf8]{inputenc}\n\\usepackage{cite}\n`,
-        'Springer': `\\documentclass{svjour3}\n\\usepackage[utf8]{inputenc}\n\\usepackage{natbib}\n`,
-        'Elsevier': `\\documentclass{elsarticle}\n\\usepackage[utf8]{inputenc}\n\\usepackage{natbib}\n`,
-        'Tesis Chilena': `\\documentclass{book}\n\\usepackage[spanish]{babel}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{geometry}\n\\geometry{a4paper, margin=2.5cm}\n\\usepackage{natbib}\n`,
+        'APA': `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{geometry}\n\\geometry{margin=1in}\n\\usepackage{setspace}\n\\doublespacing\n\\usepackage{natbib}\n\\bibpunct{(}{)}{;}{a}{,}{,}\n\\usepackage{graphicx}\n`,
+        'Chicago': `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{geometry}\n\\geometry{margin=1in}\n\\usepackage{chicago}\n\\usepackage{graphicx}\n`,
+        'IEEE': `\\documentclass[conference]{IEEEtran}\n\\usepackage[utf8]{inputenc}\n\\usepackage{cite}\n\\usepackage{graphicx}\n`,
+        'Springer': `\\documentclass{svjour3}\n\\usepackage[utf8]{inputenc}\n\\usepackage{natbib}\n\\usepackage{graphicx}\n`,
+        'Elsevier': `\\documentclass{elsarticle}\n\\usepackage[utf8]{inputenc}\n\\usepackage{natbib}\n\\usepackage{graphicx}\n`,
+        'Tesis Chilena': `\\documentclass{book}\n\\usepackage[spanish]{babel}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{geometry}\n\\geometry{a4paper, margin=2.5cm}\n\\usepackage{natbib}\n\\usepackage{graphicx}\n`,
         // Agrega más plantillas con paquetes comunes para cada estilo
     };
-
     // Elementos del DOM
     const templateSelect = document.getElementById('template-select');
     const generateStructureButton = document.getElementById('generate-structure');
@@ -36,19 +35,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const analyzeButton = document.getElementById('analyze-text');
     const analysisOutput = document.getElementById('analysis-output');
     const darkModeToggle = document.getElementById('dark-mode-toggle');
-    const expandButton = document.getElementById('expand-paragraph');
-    const rewriteButton = document.getElementById('rewrite-intro');
+    const insertSectionBtn = document.getElementById('insert-section');
+    const insertCiteBtn = document.getElementById('insert-cite');
+    const insertMathBtn = document.getElementById('insert-math');
+    const insertFigureBtn = document.getElementById('insert-figure');
+    const insertTableBtn = document.getElementById('insert-table');
+    const insertBoldBtn = document.getElementById('insert-bold');
+    const insertItalicBtn = document.getElementById('insert-italic');
+    const insertItemizeBtn = document.getElementById('insert-itemize');
+    const insertEnumerateBtn = document.getElementById('insert-enumerate');
+    const importZip = document.getElementById('import-zip');
+    const importTex = document.getElementById('import-tex');
+    const importBib = document.getElementById('import-bib');
+    const compileLog = document.getElementById('compile-log');
     let preambleEditor, mainEditor, bibEditor;
     let versions = JSON.parse(localStorage.getItem('versions')) || [];
     let images = []; // Array de {name, base64}
-    let pdftex = new PDFTeX(); // Inicializa el compilador local
-
-
-
+    let texlive = new TeXLive(compileLog); // Inicializa el compilador local con log
     // Editor para preamble (LaTeX mode)
     if (preambleEditorElem) {
         const preambleState = EditorState.create({
-            doc: '',
+            doc: '\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{graphicx}\n',
             extensions: [
                 basicSetup,
                 autocomplete,
@@ -60,11 +67,10 @@ document.addEventListener('DOMContentLoaded', () => {
             parent: preambleEditorElem
         });
     }
-
     // Editor principal para LaTeX body
     if (mainEditorElem) {
         const mainState = EditorState.create({
-            doc: '',
+            doc: '\\begin{document}\nHola mundo\n\\end{document}',
             extensions: [
                 basicSetup,
                 autocomplete,
@@ -77,7 +83,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         mainEditor.dom.addEventListener('change', updateSidebar); // Actualiza sidebar en cambios
     }
-
     // Editor para BibTeX
     if (bibEditorElem) {
         const bibState = EditorState.create({
@@ -93,7 +98,6 @@ document.addEventListener('DOMContentLoaded', () => {
             parent: bibEditorElem
         });
     }
-
     // Modo oscuro
     if (darkModeToggle) {
         darkModeToggle.addEventListener('click', () => {
@@ -105,7 +109,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark');
     }
-
     // Generar estructura de proyecto
     if (generateStructureButton && templateSelect) {
         generateStructureButton.addEventListener('click', () => {
@@ -116,21 +119,22 @@ document.addEventListener('DOMContentLoaded', () => {
             updateSidebar();
         });
     }
-
     // Inserciones rápidas en main editor
     if (insertSectionBtn) insertSectionBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\section{}'));
     if (insertCiteBtn) insertCiteBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\cite{}'));
     if (insertMathBtn) insertMathBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\[\n\\]'));
     if (insertFigureBtn) insertFigureBtn.addEventListener('click', () => insertFigure(mainEditor));
     if (insertTableBtn) insertTableBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\begin{table}[h]\n\\centering\n\\begin{tabular}{cc}\n a & b \\\\ \n c & d \\\\ \n\\end{tabular}\n\\caption{}\n\\label{}\n\\end{table}'));
-
+    if (insertBoldBtn) insertBoldBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\textbf{}'));
+    if (insertItalicBtn) insertItalicBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\textit{}'));
+    if (insertItemizeBtn) insertItemizeBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\begin{itemize}\n\\item \n\\end{itemize}'));
+    if (insertEnumerateBtn) insertEnumerateBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\begin{enumerate}\n\\item \n\\end{enumerate}'));
     function insertAtCursor(editorView, text) {
         const state = editorView.state;
         const transaction = state.update({ changes: { from: state.selection.main.head, insert: text } });
         editorView.dispatch(transaction);
         editorView.focus();
     }
-
     function insertFigure(editorView) {
         const input = document.createElement('input');
         input.type = 'file';
@@ -147,11 +151,9 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         input.click();
     }
-
     function sanitizeFilename(name) {
         return name.replace(/[^a-zA-Z0-9.-]/g, '_');
     }
-
     // Actualizar sidebar con estructura LaTeX
     function updateSidebar() {
         if (sidebar) {
@@ -174,7 +176,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-
     // Fetch BibTeX desde DOI y agregar a bib editor
     if (fetchBibButton && doiInput) {
         fetchBibButton.addEventListener('click', async () => {
@@ -191,7 +192,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
     // Fetch desde ISBN
     if (fetchIsbnButton && isbnInput) {
         fetchIsbnButton.addEventListener('click', async () => {
@@ -205,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const author = data.authors ? data.authors.map(a => a.name).join(' and ') : 'Unknown';
                 const publisher = data.publishers ? data.publishers[0] : 'Unknown';
                 const key = (author.split(' ')[0] + year).toLowerCase();
-                const bib = `@book{${key},\n  author = {${author}},\n  title = {${data.title}},\n  year = {${year}},\n  publisher = {${publisher}},\n}\n`;
+                const bib = `@book{${key},\n author = {${author}},\n title = {${data.title}},\n year = {${year}},\n publisher = {${publisher}},\n}\n`;
                 const currentBib = bibEditor.state.doc.toString();
                 bibEditor.dispatch({ changes: { from: currentBib.length, insert: (currentBib ? '\n' : '') + bib } });
             } catch (e) {
@@ -213,25 +213,87 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
+    // Importar .zip
+    if (importZip) {
+        importZip.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+                const zip = await JSZip.loadAsync(file);
+                const texFile = zip.file('document.tex');
+                if (texFile) {
+                    const text = await texFile.async('string');
+                    const parts = text.split('\\begin{document}');
+                    preambleEditor.dispatch({ changes: { from: 0, to: preambleEditor.state.doc.length, insert: parts[0] || '' } });
+                    mainEditor.dispatch({ changes: { from: 0, to: mainEditor.state.doc.length, insert: (parts.length > 1 ? '\\begin{document}' + parts.slice(1).join('\\begin{document}') : text) } });
+                }
+                const bibFile = zip.file('refs.bib');
+                if (bibFile) {
+                    const bibText = await bibFile.async('string');
+                    bibEditor.dispatch({ changes: { from: 0, to: bibEditor.state.doc.length, insert: bibText } });
+                }
+                await zip.forEach(async (path, entry) => {
+                    if (!entry.dir && /\.(png|jpg|jpeg|gif)$/i.test(path)) {
+                        const base64 = await entry.async('base64');
+                        images.push({ name: sanitizeFilename(path), data: base64 });
+                    }
+                });
+                updateSidebar();
+            } catch (e) {
+                alert('Error al importar .zip: ' + e.message);
+            }
+        });
+    }
+    // Importar .tex
+    if (importTex) {
+        importTex.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (r) => {
+                const text = r.target.result;
+                const parts = text.split('\\begin{document}');
+                preambleEditor.dispatch({ changes: { from: 0, to: preambleEditor.state.doc.length, insert: parts[0] || '' } });
+                mainEditor.dispatch({ changes: { from: 0, to: mainEditor.state.doc.length, insert: (parts.length > 1 ? '\\begin{document}' + parts.slice(1).join('\\begin{document}') : text) } });
+                updateSidebar();
+            };
+            reader.readAsText(file);
+        });
+    }
+    // Importar .bib
+    if (importBib) {
+        importBib.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (r) => {
+                const text = r.target.result;
+                bibEditor.dispatch({ changes: { from: 0, to: bibEditor.state.doc.length, insert: text } });
+            };
+            reader.readAsText(file);
+        });
+    }
     // Compilar LaTeX a PDF localmente
     if (compileButton && pdfPreview) {
         compileButton.addEventListener('click', async () => {
             const preamble = preambleEditor.state.doc.toString();
             const body = mainEditor.state.doc.toString();
-            const bib = bibEditor.state.doc.toString();
             const fullLatex = preamble + body;
-            // Agregar archivos al filesystem virtual de PDFTeX
-            pdftex.set_TEXINPUTS(".:/texmf:");
-            if (bib) pdftex.add_file('refs.bib', new Uint8Array(new TextEncoder().encode(bib)));
-            images.forEach(img => {
-                const binary = atob(img.data);
-                const array = new Uint8Array(binary.length);
-                for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
-                pdftex.add_file(img.name, array);
-            });
+            const bib = bibEditor.state.doc.toString();
             try {
-                const pdfBytes = await pdftex.compile(fullLatex);
+                texlive.FS.writeFile('main.tex', fullLatex);
+                if (bib) texlive.FS.writeFile('refs.bib', bib);
+                images.forEach(img => {
+                    const binary = atob(img.data);
+                    const array = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+                    texlive.FS.writeFile(img.name, array);
+                });
+                await new Promise((resolve) => texlive.run('pdflatex -interaction=nonstopmode main.tex', resolve));
+                if (bib) await new Promise((resolve) => texlive.run('bibtex main', resolve));
+                await new Promise((resolve) => texlive.run('pdflatex -interaction=nonstopmode main.tex', resolve));
+                await new Promise((resolve) => texlive.run('pdflatex -interaction=nonstopmode main.tex', resolve));
+                const pdfBytes = texlive.FS.readFile('main.pdf', { encoding: 'binary' });
                 const blob = new Blob([pdfBytes], { type: 'application/pdf' });
                 pdfPreview.src = URL.createObjectURL(blob);
                 pdfPreview.style.display = 'block';
@@ -240,7 +302,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
     // Exportar .tex
     if (exportTexButton) {
         exportTexButton.addEventListener('click', () => {
@@ -254,7 +315,6 @@ document.addEventListener('DOMContentLoaded', () => {
             URL.revokeObjectURL(url);
         });
     }
-
     // Exportar .zip con proyecto
     if (exportZipButton) {
         exportZipButton.addEventListener('click', async () => {
@@ -271,7 +331,6 @@ document.addEventListener('DOMContentLoaded', () => {
             URL.revokeObjectURL(url);
         });
     }
-
     // Historial de versiones
     if (saveVersionButton && versionsList) {
         saveVersionButton.addEventListener('click', () => {
@@ -285,7 +344,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         renderVersions();
     }
-
     function renderVersions() {
         versionsList.innerHTML = '';
         versions.forEach((v, i) => {
@@ -300,7 +358,6 @@ document.addEventListener('DOMContentLoaded', () => {
             versionsList.appendChild(btn);
         });
     }
-
     // Análisis de texto (repeticiones, consistencia)
     if (analyzeButton && analysisOutput) {
         analyzeButton.addEventListener('click', () => {
@@ -312,29 +369,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const longSent = text.split(/[.!?]/).filter(s => s.split(/\s+/).length > 30).length;
             analysisOutput.innerHTML = `Repeticiones frecuentes: ${reps || 'Ninguna'}<br>Oraciones largas: ${longSent}`;
             // Agregar más análisis como densidad (palabras únicas / total)
-        });
-    }
-
-    // "IA" simple: expandir y reescribir (basado en reglas)
-    if (expandButton) {
-        expandButton.addEventListener('click', () => {
-            const selected = mainEditor.state.selection.main;
-            const text = mainEditor.state.doc.sliceString(selected.from, selected.to);
-            if (text) {
-                const expanded = text + '\n% Expansión: Además, esto implica que... [agrega detalles académicos]';
-                mainEditor.dispatch({ changes: { from: selected.from, to: selected.to, insert: expanded } });
-            }
-        });
-    }
-
-    if (rewriteButton) {
-        rewriteButton.addEventListener('click', () => {
-            const selected = mainEditor.state.selection.main;
-            const text = mainEditor.state.doc.sliceString(selected.from, selected.to);
-            if (text) {
-                const rewritten = `% Reescritura como intro: Este trabajo presenta ${text}. Las secciones siguientes exploran...`;
-                mainEditor.dispatch({ changes: { from: selected.from, to: selected.to, insert: rewritten } });
-            }
         });
     }
 });
