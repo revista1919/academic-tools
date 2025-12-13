@@ -91,8 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const fetchBibButton = document.getElementById('fetch-bib');
   const isbnInput = document.getElementById('isbn-input');
   const fetchIsbnButton = document.getElementById('fetch-isbn');
-  const compileButton = document.getElementById('compile-pdf');
-  const pdfPreview = document.getElementById('pdf-preview');
   const exportTexButton = document.getElementById('export-tex');
   const exportZipButton = document.getElementById('export-zip');
   const saveVersionButton = document.getElementById('save-version');
@@ -101,10 +99,30 @@ document.addEventListener('DOMContentLoaded', () => {
   const analysisOutput = document.getElementById('analysis-output');
   const darkModeToggle = document.getElementById('dark-mode-toggle');
   const insertFigureBtn = document.getElementById('insert-figure');
+  const insertVisualTableBtn = document.getElementById('insert-visual-table');
   const importZip = document.getElementById('import-zip');
   const importTex = document.getElementById('import-tex');
   const importBib = document.getElementById('import-bib');
-  const compileLog = document.getElementById('compile-log');
+  const tableModal = document.getElementById('table-modal');
+  const tableRowsInput = document.getElementById('table-rows');
+  const tableColsInput = document.getElementById('table-cols');
+  const generateTableGridBtn = document.getElementById('generate-table-grid');
+  const tableGrid = document.getElementById('table-grid');
+  const insertTableCodeBtn = document.getElementById('insert-table-code');
+  const closeTableModalBtn = document.getElementById('close-table-modal');
+  const insertVisualEquationBtn = document.getElementById('insert-visual-equation');
+  const equationModal = document.getElementById('equation-modal');
+  const equationInput = document.getElementById('equation-input');
+  const equationPreview = document.getElementById('equation-preview');
+  const insertEquationCodeBtn = document.getElementById('insert-equation-code');
+  const closeEquationModalBtn = document.getElementById('close-equation-modal');
+  const wordCountElem = document.getElementById('word-count');
+  const findReplaceBtn = document.getElementById('find-replace-btn');
+  const findInput = document.getElementById('find-input');
+  const replaceInput = document.getElementById('replace-input');
+  const findReplaceModal = document.getElementById('find-replace-modal');
+  const closeFindReplaceModalBtn = document.getElementById('close-find-replace-modal');
+  const performFindReplaceBtn = document.getElementById('perform-find-replace');
 
   let preambleEditor, mainEditor, bibEditor;
   let versions = JSON.parse(localStorage.getItem('versions')) || [];
@@ -118,7 +136,44 @@ document.addEventListener('DOMContentLoaded', () => {
     indentUnit: 4,
     tabSize: 4,
     indentWithTabs: false,
-    mode: "stex"
+    mode: "stex",
+    extraKeys: {
+      "Ctrl-B": () => insertAtCursor(mainEditor, '\\textbf{}'),
+      "Ctrl-I": () => insertAtCursor(mainEditor, '\\textit{}'),
+      "Ctrl-U": () => insertAtCursor(mainEditor, '\\underline{}'),
+      "Ctrl-S": () => insertAtCursor(mainEditor, '\\section{}'),
+      "Ctrl-Shift-S": () => insertAtCursor(mainEditor, '\\subsection{}'),
+      "Ctrl-Alt-S": () => insertAtCursor(mainEditor, '\\subsubsection{}'),
+      "Ctrl-E": () => insertAtCursor(mainEditor, '\\begin{equation}\n\\end{equation}'),
+      "Ctrl-M": () => insertAtCursor(mainEditor, '\\[\n\\]'),
+      "Ctrl-L": () => insertAtCursor(mainEditor, '\\begin{itemize}\n\\item \n\\end{itemize}'),
+      "Ctrl-Shift-L": () => insertAtCursor(mainEditor, '\\begin{enumerate}\n\\item \n\\end{enumerate}'),
+      "Ctrl-T": () => openVisualTableModal(),
+      "Ctrl-F": () => insertFigure(mainEditor),
+      "Ctrl-C": () => insertAtCursor(mainEditor, '\\cite{}'),
+      "Ctrl-H": () => insertAtCursor(mainEditor, '\\href{}{}'),
+      "Ctrl-N": () => insertAtCursor(mainEditor, '\\footnote{}'),
+      "Ctrl-Alt-T": () => insertAtCursor(mainEditor, '\\begin{table}[h]\n\\centering\n\\begin{tabular}{cc}\n a & b \\\\ \n c & d \\\\ \n\\end{tabular}\n\\caption{}\n\\label{}\n\\end{table}'),
+      "Ctrl-Alt-F": () => insertAtCursor(mainEditor, '\\begin{figure}[h]\n\\centering\n\\includegraphics[width=0.8\\textwidth]{}\n\\caption{}\n\\label{}\n\\end{figure}'),
+      "Ctrl-Alt-E": () => insertAtCursor(mainEditor, '\\begin{align}\n\\end{align}'),
+      "Ctrl-Alt-M": () => insertAtCursor(mainEditor, '\\begin{bmatrix}\n\\end{bmatrix}'),
+      "Ctrl-Alt-P": () => insertAtCursor(mainEditor, '\\begin{pmatrix}\n\\end{pmatrix}'),
+      "Ctrl-Alt-V": () => insertAtCursor(mainEditor, '\\vec{}'),
+      "Ctrl-Alt-H": () => insertAtCursor(mainEditor, '\\hat{}'),
+      "Ctrl-Alt-B": () => insertAtCursor(mainEditor, '\\bar{}'),
+      "Ctrl-Alt-D": () => insertAtCursor(mainEditor, '\\dot{}'),
+      "Ctrl-Alt-O": () => insertAtCursor(mainEditor, '\\overline{}'),
+      "Ctrl-Alt-U": () => insertAtCursor(mainEditor, '\\underbrace{}{}'),
+      "Ctrl-Alt-I": () => insertAtCursor(mainEditor, '\\int'),
+      "Ctrl-Alt-Sum": () => insertAtCursor(mainEditor, '\\sum'),
+      "Ctrl-Alt-Prod": () => insertAtCursor(mainEditor, '\\prod'),
+      "Ctrl-Alt-Lim": () => insertAtCursor(mainEditor, '\\lim'),
+      "Ctrl-Alt-Inf": () => insertAtCursor(mainEditor, '\\infty'),
+      "Ctrl-Q": () => openVisualEquationModal(),
+      "Ctrl-Z": "undo",
+      "Ctrl-Y": "redo",
+      "Ctrl-Find": () => openFindReplaceModal()
+    }
   };
 
   if (preambleEditorElem) {
@@ -134,7 +189,10 @@ document.addEventListener('DOMContentLoaded', () => {
       value: '\\begin{document}\nHola mundo\n\\end{document}',
       ...editorOptions
     });
-    mainEditor.on("change", updateSidebar);
+    mainEditor.on("change", () => {
+      updateSidebar();
+      updateWordCount();
+    });
     console.log("Main editor creado");
   }
 
@@ -173,6 +231,13 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("Sidebar actualizada con", count, "items");
   }
 
+  function updateWordCount() {
+    if (!wordCountElem || !mainEditor) return;
+    const text = mainEditor.getValue().replace(/\\[^ ]+/g, '').replace(/\s+/g, ' ').trim();
+    const wordCount = text.split(' ').length;
+    wordCountElem.textContent = `Palabras: ${wordCount}`;
+  }
+
   // Modo oscuro
   if (darkModeToggle) {
     darkModeToggle.addEventListener('click', () => {
@@ -194,6 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
       mainEditor.setValue('\\begin{document}\n\\maketitle\n\n\\section{Introducci\\\'on}\nEscribe aqu\\\'i...\n\n\\section{Metodolog\\\'ia}\n...\n\n\\section{Conclusiones}\n...\n\n\\bibliographystyle{plainnat}\n\\bibliography{refs}\n\\end{document}');
       bibEditor.setValue('');
       updateSidebar();
+      updateWordCount();
       console.log("Estructura generada con template:", template);
     });
   }
@@ -212,7 +278,57 @@ document.addEventListener('DOMContentLoaded', () => {
     'insert-itemize': '\\begin{itemize}\n\\item \n\\end{itemize}',
     'insert-enumerate': '\\begin{enumerate}\n\\item \n\\end{enumerate}',
     'insert-hyperlink': '\\href{}{}',
-    'insert-footnote': '\\footnote{}'
+    'insert-footnote': '\\footnote{}',
+    'insert-align': '\\begin{align}\n\\end{align}',
+    'insert-matrix': '\\begin{bmatrix}\n\\end{bmatrix}',
+    'insert-pmatrix': '\\begin{pmatrix}\n\\end{pmatrix}',
+    'insert-vector': '\\vec{}',
+    'insert-hat': '\\hat{}',
+    'insert-bar': '\\bar{}',
+    'insert-dot': '\\dot{}',
+    'insert-overline': '\\overline{}',
+    'insert-underbrace': '\\underbrace{}{}',
+    'insert-integral': '\\int',
+    'insert-sum': '\\sum',
+    'insert-prod': '\\prod',
+    'insert-lim': '\\lim',
+    'insert-infty': '\\infty',
+    'insert-abstract': '\\begin{abstract}\n\\end{abstract}',
+    'insert-theorem': '\\begin{theorem}\n\\end{theorem}',
+    'insert-lemma': '\\begin{lemma}\n\\end{lemma}',
+    'insert-proof': '\\begin{proof}\n\\end{proof}',
+    'insert-description': '\\begin{description}\n\\item[] \n\\end{description}',
+    'insert-verbatim': '\\begin{verbatim}\n\\end{verbatim}',
+    'insert-quote': '\\begin{quote}\n\\end{quote}',
+    'insert-center': '\\begin{center}\n\\end{center}',
+    'insert-flushleft': '\\begin{flushleft}\n\\end{flushleft}',
+    'insert-flushright': '\\begin{flushright}\n\\end{flushright}',
+    'insert-minipage': '\\begin{minipage}{0.5\\textwidth}\n\\end{minipage}',
+    'insert-framebox': '\\fbox{}',
+    'insert-color': '\\textcolor{}{}',
+    'insert-pagebreak': '\\pagebreak',
+    'insert-newpage': '\\newpage',
+    'insert-chapter': '\\chapter{}',
+    'insert-part': '\\part{}',
+    'insert-paragraph': '\\paragraph{}',
+    'insert-subparagraph': '\\subparagraph{}',
+    'insert-label': '\\label{}',
+    'insert-ref': '\\ref{}',
+    'insert-pageref': '\\pageref{}',
+    'insert-index': '\\index{}',
+    'insert-glossary': '\\glossary{}',
+    'insert-emph': '\\emph{}',
+    'insert-texttt': '\\texttt{}',
+    'insert-textsc': '\\textsc{}',
+    'insert-textsf': '\\textsf{}',
+    'insert-textmd': '\\textmd{}',
+    'insert-textup': '\\textup{}',
+    'insert-textsl': '\\textsl{}',
+    'insert-roman': '\\roman{}',
+    'insert-Roman': '\\Roman{}',
+    'insert-alph': '\\alph{}',
+    'insert-Alph': '\\Alph{}',
+    'insert-arabic': '\\arabic{}'
   };
 
   Object.keys(insertButtons).forEach(id => {
@@ -221,6 +337,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   if (insertFigureBtn) insertFigureBtn.addEventListener('click', () => insertFigure(mainEditor));
+
+  if (insertVisualTableBtn) insertVisualTableBtn.addEventListener('click', openVisualTableModal);
+
+  if (insertVisualEquationBtn) insertVisualEquationBtn.addEventListener('click', openVisualEquationModal);
+
+  if (findReplaceBtn) findReplaceBtn.addEventListener('click', openFindReplaceModal);
 
   function insertAtCursor(editor, text) {
     if (!editor) return;
@@ -251,6 +373,121 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function sanitizeFilename(name) {
     return name.replace(/[^a-zA-Z0-9.-]/g, '_');
+  }
+
+  // Visual Table Designer
+  function openVisualTableModal() {
+    if (tableModal) tableModal.style.display = 'block';
+    tableGrid.innerHTML = '';
+  }
+
+  if (generateTableGridBtn) {
+    generateTableGridBtn.addEventListener('click', () => {
+      const rows = parseInt(tableRowsInput.value) || 2;
+      const cols = parseInt(tableColsInput.value) || 2;
+      tableGrid.innerHTML = '';
+      for (let i = 0; i < rows; i++) {
+        const row = document.createElement('tr');
+        for (let j = 0; j < cols; j++) {
+          const cell = document.createElement('td');
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.placeholder = `Celda ${i+1},${j+1}`;
+          cell.appendChild(input);
+          row.appendChild(cell);
+        }
+        tableGrid.appendChild(row);
+      }
+    });
+  }
+
+  if (insertTableCodeBtn) {
+    insertTableCodeBtn.addEventListener('click', () => {
+      const rows = tableGrid.querySelectorAll('tr');
+      let tableCode = '\\begin{table}[h]\n\\centering\n\\begin{tabular}{';
+      const cols = rows[0] ? rows[0].children.length : 0;
+      tableCode += 'c'.repeat(cols) + '}\n';
+      rows.forEach(row => {
+        const cells = Array.from(row.querySelectorAll('input')).map(input => input.value || '');
+        tableCode += cells.join(' & ') + ' \\\\ \n';
+      });
+      tableCode += '\\end{tabular}\n\\caption{}\n\\label{}\n\\end{table}';
+      insertAtCursor(mainEditor, tableCode);
+      closeTableModal();
+    });
+  }
+
+  if (closeTableModalBtn) {
+    closeTableModalBtn.addEventListener('click', closeTableModal);
+  }
+
+  function closeTableModal() {
+    if (tableModal) tableModal.style.display = 'none';
+    tableGrid.innerHTML = '';
+    tableRowsInput.value = '';
+    tableColsInput.value = '';
+  }
+
+  // Visual Equation Designer (using MathJax for preview)
+  function openVisualEquationModal() {
+    if (equationModal) equationModal.style.display = 'block';
+    equationPreview.innerHTML = '';
+  }
+
+  if (equationInput) {
+    equationInput.addEventListener('input', () => {
+      const math = equationInput.value;
+      equationPreview.innerHTML = `$$${math}$$`;
+      MathJax.typesetPromise([equationPreview]);
+    });
+  }
+
+  if (insertEquationCodeBtn) {
+    insertEquationCodeBtn.addEventListener('click', () => {
+      const math = equationInput.value;
+      if (math) {
+        insertAtCursor(mainEditor, `\\begin{equation}\n${math}\n\\end{equation}`);
+      }
+      closeEquationModal();
+    });
+  }
+
+  if (closeEquationModalBtn) {
+    closeEquationModalBtn.addEventListener('click', closeEquationModal);
+  }
+
+  function closeEquationModal() {
+    if (equationModal) equationModal.style.display = 'none';
+    equationInput.value = '';
+    equationPreview.innerHTML = '';
+  }
+
+  // Find and Replace
+  function openFindReplaceModal() {
+    if (findReplaceModal) findReplaceModal.style.display = 'block';
+  }
+
+  if (performFindReplaceBtn) {
+    performFindReplaceBtn.addEventListener('click', () => {
+      const find = findInput.value;
+      const replace = replaceInput.value;
+      if (find && mainEditor) {
+        let text = mainEditor.getValue();
+        text = text.replace(new RegExp(find, 'g'), replace);
+        mainEditor.setValue(text);
+      }
+      closeFindReplaceModal();
+    });
+  }
+
+  if (closeFindReplaceModalBtn) {
+    closeFindReplaceModalBtn.addEventListener('click', closeFindReplaceModal);
+  }
+
+  function closeFindReplaceModal() {
+    if (findReplaceModal) findReplaceModal.style.display = 'none';
+    findInput.value = '';
+    replaceInput.value = '';
   }
 
   // Fetch BibTeX desde DOI
@@ -325,6 +562,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         await Promise.all(promises);
         updateSidebar();
+        updateWordCount();
         alert('Proyecto importado exitosamente.');
       } catch (e) {
         console.error('Error importando .zip:', e);
@@ -345,6 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
         preambleEditor.setValue(parts[0] || '');
         mainEditor.setValue(parts.length > 1 ? '\\begin{document}' + parts.slice(1).join('\\begin{document}') : text);
         updateSidebar();
+        updateWordCount();
         alert('Archivo .tex importado.');
       };
       reader.readAsText(file);
@@ -366,67 +605,82 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Compilar LaTeX a PDF localmente con SwiftLaTeX wrapper
-  if (compileButton && pdfPreview) {
-    compileButton.addEventListener('click', async () => {
-      console.log("Iniciando compilación con SwiftLaTeX wrapper (xetex)");
-      if (!preambleEditor || !mainEditor) {
-        alert("Faltan editores");
-        return;
-      }
+  // Guardar versión
+  if (saveVersionButton) {
+    saveVersionButton.addEventListener('click', () => {
+      const version = {
+        preamble: preambleEditor.getValue(),
+        main: mainEditor.getValue(),
+        bib: bibEditor.getValue(),
+        images: images.map(img => ({ name: img.name, data: img.data })),
+        timestamp: new Date().toISOString()
+      };
+      versions.push(version);
+      localStorage.setItem('versions', JSON.stringify(versions));
+      updateVersionsList();
+    });
+  }
 
-      // Fix: Concatenación segura de fullLatex
-      let fullLatex = preambleEditor.getValue();
-      if (!fullLatex.includes('\\begin{document}')) {
-        fullLatex += '\n\\begin{document}\n';
-      }
-      fullLatex += mainEditor.getValue();
-      if (!fullLatex.includes('\\end{document}')) {
-        fullLatex += '\n\\end{document}\n';
-      }
+  function updateVersionsList() {
+    if (!versionsList) return;
+    versionsList.innerHTML = '';
+    versions.forEach((v, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = `Versión ${i+1} - ${v.timestamp}`;
+      btn.onclick = () => {
+        preambleEditor.setValue(v.preamble);
+        mainEditor.setValue(v.main);
+        bibEditor.setValue(v.bib);
+        images = v.images;
+        updateSidebar();
+        updateWordCount();
+      };
+      versionsList.appendChild(btn);
+    });
+  }
 
-      const bib = bibEditor ? bibEditor.getValue() : '';
+  updateVersionsList();
 
-      try {
-        // Fix: Preparar files sin bib vacío
-        const files = {
-          "main.tex": fullLatex
-        };
-        if (bib && bib.trim()) {
-          files["refs.bib"] = bib;
-        }
+  // Export .tex
+  if (exportTexButton) {
+    exportTexButton.addEventListener('click', () => {
+      const fullTex = preambleEditor.getValue() + '\n\\begin{document}\n' + mainEditor.getValue() + '\n\\end{document}';
+      const blob = new Blob([fullTex], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'document.tex';
+      a.click();
+    });
+  }
 
-        // Agregar imágenes como Uint8Array
-        images.forEach(img => {
-          files[img.name] = Uint8Array.from(atob(img.data), c => c.charCodeAt(0));
-          console.log("Imagen agregada a files:", img.name);
-        });
+  // Export .zip
+  if (exportZipButton) {
+    exportZipButton.addEventListener('click', async () => {
+      const zip = new JSZip();
+      const fullTex = preambleEditor.getValue() + '\n\\begin{document}\n' + mainEditor.getValue() + '\n\\end{document}';
+      zip.file('main.tex', fullTex);
+      zip.file('refs.bib', bibEditor.getValue());
+      images.forEach(img => {
+        zip.file(img.name, Uint8Array.from(atob(img.data), c => c.charCodeAt(0)));
+      });
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'project.zip';
+      a.click();
+    });
+  }
 
-        // Compilar usando el wrapper
-        console.log("Compilando LaTeX...");
-        const result = await SwiftLaTeX.compile({
-          engine: "xetex",
-          mainFile: "main.tex",
-          files: files
-        });
-
-        if (result.pdf) {
-          const pdfBlob = new Blob([result.pdf], { type: 'application/pdf' });
-          const pdfUrl = URL.createObjectURL(pdfBlob);
-          pdfPreview.src = pdfUrl;
-          pdfPreview.style.display = 'block';
-          console.log("¡Compilación exitosa! PDF mostrado");
-          if (compileLog) compileLog.textContent = 'Compilación exitosa.';
-        } else {
-          console.error('Error en compilación:', result.log);
-          alert('Error en compilación: Revisa la consola para detalles.');
-          if (compileLog) compileLog.textContent = result.log || 'Error desconocido.';
-        }
-      } catch (e) {
-        console.error('Error en compilación con SwiftLaTeX:', e);
-        alert('Error inicializando o compilando: ' + e.message + '\nAsegúrate de que swiftlatexxetex.js y .wasm estén cargados correctamente.');
-        if (compileLog) compileLog.textContent = e.message;
-      }
+  // Análisis de texto
+  if (analyzeButton && analysisOutput) {
+    analyzeButton.addEventListener('click', () => {
+      const text = mainEditor.getValue();
+      const words = text.split(/\s+/).length;
+      const sentences = text.split(/[.!?]+/).length;
+      const paragraphs = text.split(/\n\n+/).length;
+      analysisOutput.innerHTML = `Palabras: ${words}<br>Oraciones: ${sentences}<br>Párrafos: ${paragraphs}`;
     });
   }
 });

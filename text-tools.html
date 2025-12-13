@@ -4,11 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editor LaTeX Académico - Academic Tools</title>
-    <meta name="description" content="Editor LaTeX como Overleaf o VS Code, con compilación local, gestión de referencias BibTeX, sidebar de navegación, inserciones rápidas y análisis. Todo en navegador, sin servidores.">
-    <meta name="keywords" content="editor latex browser, compilador latex local, herramientas academic overleaf alternativo, gratis ético">
+    <meta name="description" content="Editor LaTeX como Overleaf o VS Code, con gestión de referencias BibTeX, sidebar de navegación, inserciones rápidas, atajos de teclado, diseñador visual de tablas, ecuaciones con vista previa, conteo de palabras, buscar/reemplazar y análisis. Todo en navegador, sin servidores.">
+    <meta name="keywords" content="editor latex browser, herramientas academic overleaf alternativo, gratis ético">
     <link rel="stylesheet" href="styles.css">
     <!-- CSS de CodeMirror 5 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <!-- MathJax for equation preview -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js" async></script>
     <style>
         body { font-family: system-ui, sans-serif; margin: 20px; background: #f9f9f9; }
         .dark { background: #1e1e1e; color: #fff; }
@@ -35,9 +37,17 @@
         .sidebar-item:hover { background: #ddd; border-left-color: #007acc; }
         .dark .sidebar-item:hover { background: #444; }
         button, select, input { padding: 10px 15px; margin: 5px; }
-        iframe { width: 100%; height: 600px; border: 1px solid #ccc; display: none; }
-        #compile-log { white-space: pre-wrap; background: #f8f8f8; padding: 10px; margin: 10px 0; border: 1px solid #ddd; display: block; } /* Mostrar log */
         #main-editor-container { display: flex; }
+        /* Modal styles */
+        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+        .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
+        table { border-collapse: collapse; width: 100%; }
+        td { border: 1px solid #ddd; padding: 8px; }
+        td input { width: 100%; box-sizing: border-box; }
+        #equation-preview { margin: 20px 0; border: 1px solid #ddd; padding: 10px; }
+        #word-count { font-weight: bold; margin: 10px; }
     </style>
 </head>
 <body>
@@ -59,16 +69,16 @@
             <h2>Guía Rápida para Empezar</h2>
             <p>1. Selecciona una plantilla y haz clic en "Generar Estructura" para crear un proyecto base.</p>
             <p>2. Edita el preamble para agregar paquetes, el cuerpo principal para el contenido, y las referencias BibTeX.</p>
-            <p>3. Usa los botones de inserción para agregar elementos comunes rápidamente. Para imágenes, usa "Insertar Figura" - te pedirá seleccionar un archivo de imagen y lo insertará en el código.</p>
-            <p>4. Importa imágenes al insertar figuras; se guardarán localmente en memoria para compilación.</p>
-            <p>5. Compila para ver el PDF preview. Si no compila, verifica la consola para errores (puede faltar paquetes en la librería local).</p>
-            <p>6. Exporta como .tex o .zip completo.</p>
-            <p>7. Guarda versiones para restaurar cambios.</p>
-            <p>Nota: Para más flexibilidad, puedes editar el código directamente. Si import no funciona, verifica que los archivos en el ZIP tengan extensión .tex y .bib en minúsculas.</p>
+            <p>3. Usa los botones de inserción para agregar elementos comunes rápidamente. Para imágenes, usa "Insertar Figura".</p>
+            <p>4. Usa el diseñador visual de tablas y ecuaciones para crear contenido de manera intuitiva y generar el código LaTeX.</p>
+            <p>5. Usa atajos de teclado para inserciones rápidas (e.g., Ctrl-S para sección, Ctrl-T para tabla visual, Ctrl-Q para ecuación visual).</p>
+            <p>6. Conteo de palabras en tiempo real, buscar/reemplazar, y análisis de texto.</p>
+            <p>7. Exporta como .tex o .zip completo.</p>
+            <p>8. Guarda versiones para restaurar cambios.</p>
+            <p>Nota: Para más flexibilidad, puedes editar el código directamente.</p>
         </section>
         <section>
             <h2>Selecciona Plantilla y Genera Proyecto</h2>
-            <p>Elige una plantilla académica y genera la estructura base.</p>
             <select id="template-select">
                 <option value="APA">APA</option>
                 <option value="Chicago">Chicago</option>
@@ -81,7 +91,6 @@
         </section>
         <section>
             <h2>Importar Proyecto o Archivos</h2>
-            <p>Carga proyectos completos desde .zip (incluye .tex, .bib e imágenes) o archivos individuales.</p>
             <label for="import-zip">Importar .zip:</label>
             <input type="file" id="import-zip" accept=".zip">
             <label for="import-tex">Importar .tex:</label>
@@ -101,39 +110,85 @@
                     <div id="main-editor" class="editor-container"></div>
                 </div>
             </div>
+            <div id="word-count">Palabras: 0</div>
         </section>
         <section>
             <h2>Herramientas Simples para LaTeX</h2>
-            <button id="insert-section">Insertar Sección</button>
-            <button id="insert-subsection">Insertar Subsección</button>
-            <button id="insert-subsubsection">Insertar Subsubsección</button>
-            <button id="insert-cite">Insertar Cita</button>
-            <button id="insert-math">Insertar Matemáticas Inline</button>
-            <button id="insert-equation">Insertar Ecuación</button>
-            <button id="insert-figure">Insertar Figura</button>
-            <button id="insert-table">Insertar Tabla</button>
+            <button id="insert-section">Sección</button>
+            <button id="insert-subsection">Subsección</button>
+            <button id="insert-subsubsection">Subsubsección</button>
+            <button id="insert-chapter">Capítulo</button>
+            <button id="insert-part">Parte</button>
+            <button id="insert-paragraph">Párrafo</button>
+            <button id="insert-subparagraph">Subpárrafo</button>
+            <button id="insert-cite">Cita</button>
+            <button id="insert-math">Matemáticas Inline</button>
+            <button id="insert-equation">Ecuación</button>
+            <button id="insert-align">Align</button>
+            <button id="insert-matrix">Matrix</button>
+            <button id="insert-pmatrix">Pmatrix</button>
+            <button id="insert-vector">Vector</button>
+            <button id="insert-hat">Hat</button>
+            <button id="insert-bar">Bar</button>
+            <button id="insert-dot">Dot</button>
+            <button id="insert-overline">Overline</button>
+            <button id="insert-underbrace">Underbrace</button>
+            <button id="insert-integral">Integral</button>
+            <button id="insert-sum">Sum</button>
+            <button id="insert-prod">Prod</button>
+            <button id="insert-lim">Lim</button>
+            <button id="insert-infty">Infinito</button>
+            <button id="insert-figure">Figura</button>
+            <button id="insert-visual-table">Tabla Visual</button>
+            <button id="insert-table">Tabla Simple</button>
+            <button id="insert-visual-equation">Ecuación Visual</button>
             <button id="insert-bold">Negrita</button>
             <button id="insert-italic">Cursiva</button>
-            <button id="insert-itemize">Lista con Puntos</button>
+            <button id="insert-emph">Énfasis</button>
+            <button id="insert-texttt">Texto Mono</button>
+            <button id="insert-textsc">Small Caps</button>
+            <button id="insert-textsf">Sans Serif</button>
+            <button id="insert-textmd">Medium</button>
+            <button id="insert-textup">Upright</button>
+            <button id="insert-textsl">Slanted</button>
+            <button id="insert-itemize">Lista Puntos</button>
             <button id="insert-enumerate">Lista Numerada</button>
-            <button id="insert-hyperlink">Insertar Hipervínculo</button>
-            <button id="insert-footnote">Insertar Nota al Pie</button>
+            <button id="insert-description">Descripción</button>
+            <button id="insert-hyperlink">Hipervínculo</button>
+            <button id="insert-footnote">Nota al Pie</button>
+            <button id="insert-abstract">Abstract</button>
+            <button id="insert-theorem">Teorema</button>
+            <button id="insert-lemma">Lema</button>
+            <button id="insert-proof">Prueba</button>
+            <button id="insert-verbatim">Verbatim</button>
+            <button id="insert-quote">Cita</button>
+            <button id="insert-center">Centro</button>
+            <button id="insert-flushleft">Flush Left</button>
+            <button id="insert-flushright">Flush Right</button>
+            <button id="insert-minipage">Minipage</button>
+            <button id="insert-framebox">Framebox</button>
+            <button id="insert-color">Color</button>
+            <button id="insert-pagebreak">Pagebreak</button>
+            <button id="insert-newpage">Newpage</button>
+            <button id="insert-label">Label</button>
+            <button id="insert-ref">Ref</button>
+            <button id="insert-pageref">Pageref</button>
+            <button id="insert-index">Index</button>
+            <button id="insert-glossary">Glossary</button>
+            <button id="insert-roman">Roman</button>
+            <button id="insert-Roman">ROMAN</button>
+            <button id="insert-alph">alph</button>
+            <button id="insert-Alph">Alph</button>
+            <button id="insert-arabic">Arabic</button>
+            <button id="find-replace-btn">Buscar/Reemplazar</button>
         </section>
         <section>
             <h2>Editor de Referencias BibTeX</h2>
-            <p>Añade entradas desde DOI o ISBN.</p>
-            <input type="text" id="doi-input" placeholder="Ingresa DOI (e.g., 10.1038/nature12345)">
+            <input type="text" id="doi-input" placeholder="Ingresa DOI">
             <button id="fetch-bib">Añadir desde DOI</button>
-            <input type="text" id="isbn-input" placeholder="Ingresa ISBN (e.g., 978-3-16-148410-0)">
+            <input type="text" id="isbn-input" placeholder="Ingresa ISBN">
             <button id="fetch-isbn">Añadir desde ISBN</button>
             <div id="bib-editor" class="editor-container"></div>
-        </section>
-        <section>
-            <h2>Compilación y Vista Previa PDF</h2>
-            <p>Compila localmente y ve el PDF generado. Si no funciona, verifica la consola para errores en compilación.</p>
-            <button id="compile-pdf">Compilar a PDF</button>
-            <iframe id="pdf-preview"></iframe>
-            <div id="compile-log">Log de compilación...</div> <!-- Ahora visible -->
         </section>
         <section>
             <h2>Exportación del Proyecto</h2>
@@ -142,26 +197,57 @@
         </section>
         <section>
             <h2>Historial de Versiones</h2>
-            <p>Guarda y restaura versiones del proyecto.</p>
             <button id="save-version">Guardar Versión Actual</button>
             <div id="versions-list"></div>
         </section>
         <section>
             <h2>Revisión y Análisis Académico</h2>
-            <p>Analiza repeticiones, párrafos largos, etc.</p>
             <button id="analyze-text">Analizar Documento</button>
             <div id="analysis-output"></div>
         </section>
         <button id="dark-mode-toggle">Alternar Modo Oscuro</button>
     </main>
+    <!-- Modal para tabla visual -->
+    <div id="table-modal" class="modal">
+        <div class="modal-content">
+            <span id="close-table-modal" class="close">&times;</span>
+            <h2>Diseñador Visual de Tablas</h2>
+            <label for="table-rows">Filas:</label>
+            <input type="number" id="table-rows" min="1" value="2">
+            <label for="table-cols">Columnas:</label>
+            <input type="number" id="table-cols" min="1" value="2">
+            <button id="generate-table-grid">Generar Grid</button>
+            <table id="table-grid"></table>
+            <button id="insert-table-code">Insertar Código LaTeX</button>
+        </div>
+    </div>
+    <!-- Modal para ecuación visual -->
+    <div id="equation-modal" class="modal">
+        <div class="modal-content">
+            <span id="close-equation-modal" class="close">&times;</span>
+            <h2>Diseñador Visual de Ecuaciones</h2>
+            <input type="text" id="equation-input" placeholder="Escribe LaTeX matemático aquí...">
+            <div id="equation-preview"></div>
+            <button id="insert-equation-code">Insertar Código LaTeX</button>
+        </div>
+    </div>
+    <!-- Modal para buscar/reemplazar -->
+    <div id="find-replace-modal" class="modal">
+        <div class="modal-content">
+            <span id="close-find-replace-modal" class="close">&times;</span>
+            <h2>Buscar y Reemplazar</h2>
+            <label for="find-input">Buscar:</label>
+            <input type="text" id="find-input">
+            <label for="replace-input">Reemplazar con:</label>
+            <input type="text" id="replace-input">
+            <button id="perform-find-replace">Ejecutar</button>
+        </div>
+    </div>
     <footer>
-        <p>Academic Tools - Gratuito y ético. Compilación LaTeX 100% local en tu navegador. Nada sale de tu computador.</p>
+        <p>Academic Tools - Gratuito y ético. Todo 100% local en tu navegador.</p>
     </footer>
     <!-- Librerías externas -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <!-- SwiftLaTeX wrapper: Solo este, sin engines legacy -->
-    <script src="/academic-tools/swiftlatex/swiftlatexxetex.js"></script>
     <!-- CodeMirror 5 core -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
     <!-- Modo LaTeX (stex) + dependencias -->
@@ -170,6 +256,7 @@
     <!-- Addons útiles -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
     <!-- Tu script -->
     <script src="tools/text.js"></script>
 </body>
