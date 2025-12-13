@@ -8,6 +8,12 @@
     <meta name="description" content="Unir PDF académico, reordenar páginas, eliminar páginas en blanco, preview y renombrado automático. Todo local en tu navegador.">
     <meta name="keywords" content="unir pdf académico, herramientas pdf gratis, herramientas para papers, utilidades académicas online">
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .sortable { display: flex; flex-wrap: wrap; }
+        .sortable div { margin: 5px; border: 1px solid #ccc; padding: 5px; }
+        canvas { border: 1px solid #ddd; margin: 5px; }
+        button { margin: 2px; }
+    </style>
 </head>
 <body>
     <header>
@@ -26,14 +32,15 @@
     <main>
         <section>
             <h2>Unir PDFs</h2>
-            <p>Une múltiples PDFs académicos en uno solo.</p>
+            <p>Une múltiples PDFs académicos en uno solo. Soporte para sorting automático y drag & drop.</p>
             <input type="file" id="pdf-upload-merge" multiple accept=".pdf">
+            <div id="merge-list" class="sortable"></div>
             <button id="merge-pdf">Unir PDFs</button>
             <a id="download-merge" style="display:none">Descargar PDF Unido</a>
         </section>
         <section>
             <h2>Reordenar Páginas</h2>
-            <p>Reordena páginas con drag-and-drop.</p>
+            <p>Reordena páginas con drag-and-drop, rota y zoom.</p>
             <input type="file" id="pdf-upload-reorder" accept=".pdf">
             <div id="pdf-preview-reorder" class="sortable"></div>
             <button id="reorder-pdf">Guardar Reordenado</button>
@@ -41,31 +48,32 @@
         </section>
         <section>
             <h2>Seleccionar Rangos y Eliminar Páginas</h2>
-            <p>Selecciona rangos, elimina páginas en blanco o específicas.</p>
+            <p>Selecciona rangos, elimina páginas en blanco o específicas. Click en previews para toggle.</p>
             <input type="file" id="pdf-upload-edit" accept=".pdf">
             <div id="pdf-preview-edit"></div>
             <input type="text" id="range-input" placeholder="Rangos: 1-3,5,7-10">
             <button id="select-range">Seleccionar Rangos</button>
             <button id="remove-blanks">Eliminar Páginas en Blanco</button>
+            <button id="extract-pages">Extraer Páginas Seleccionadas</button>
             <button id="save-edited">Guardar Editado</button>
             <a id="download-edited" style="display:none">Descargar PDF Editado</a>
         </section>
         <section>
             <h2>Preview de Páginas</h2>
-            <p>Visualiza páginas.</p>
+            <p>Visualiza páginas con navegación.</p>
             <input type="file" id="pdf-upload-preview" accept=".pdf">
             <div id="pdf-preview"></div>
         </section>
         <section>
             <h2>Renombrado Automático Académico</h2>
-            <p>Renombra PDFs basado en título o autor de metadata.</p>
+            <p>Renombra PDFs basado en metadata o contenido de primera página.</p>
             <input type="file" id="pdf-upload-rename" accept=".pdf">
             <button id="rename-pdf">Renombrar</button>
             <a id="download-renamed" style="display:none">Descargar PDF Renombrado</a>
         </section>
     </main>
     <footer>
-        <p>Academic Tools - Gratuito y ético. Nada de lo que escribes o subes sale de tu computador.</p>
+        <p>Academic Tools - Gratuito y ético. Nada de lo que escribes o subes sale de tu computador. Sesiones guardadas localmente.</p>
     </footer>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
