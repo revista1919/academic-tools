@@ -26,32 +26,38 @@ document.addEventListener('DOMContentLoaded', () => {
     let historyIndex = -1;
     const MAX_HISTORY = 50;
 
-    // Secciones típicas con variaciones y orden esperado
+    // Secciones típicas con variaciones ampliadas para ensayos y textos generales
     const sectionVariants = {
+        'Title': ['Title', 'Título', 'Encabezado'],
         'Abstract': ['Abstract', 'Resumen', 'Summary'],
-        'Introduction': ['Introduction', 'Introducción', 'Background'],
-        'Literature Review': ['Literature Review', 'Revisión de Literatura', 'Related Work'],
+        'Introduction': ['Introduction', 'Introducción', 'Background', 'Prólogo'],
+        'Literature Review': ['Literature Review', 'Revisión de Literatura', 'Related Work', 'Estado del Arte'],
         'Methods': ['Methods', 'Materials and Methods', 'Methodology', 'Métodos', 'Materiales y Métodos'],
+        'Body': ['Body', 'Cuerpo', 'Main Text', 'Texto Principal', 'Desarrollo'],
+        'Analysis': ['Analysis', 'Análisis', 'Interpretación'],
         'Results': ['Results', 'Resultados', 'Findings'],
         'Discussion': ['Discussion', 'Discusión', 'Analysis'],
-        'Conclusion': ['Conclusion', 'Conclusions', 'Conclusión', 'Conclusiones'],
-        'References': ['References', 'Bibliography', 'Referencias', 'Bibliografía']
+        'Conclusion': ['Conclusion', 'Conclusions', 'Conclusión', 'Conclusiones', 'Epílogo'],
+        'References': ['References', 'Bibliography', 'Referencias', 'Bibliografía', 'Fuentes']
     };
     const expectedOrder = Object.keys(sectionVariants);
 
-    // Recomendaciones de longitud por sección
+    // Recomendaciones de longitud por sección (ampliadas para ensayos)
     const lengthRecommendations = {
+        'Title': { min: 5, max: 100 },
         'Abstract': { min: 150, max: 300 },
         'Introduction': { min: 400, max: 1000 },
         'Literature Review': { min: 500, max: 2000 },
         'Methods': { min: 300, max: 1500 },
+        'Body': { min: 1000, max: 10000 },
+        'Analysis': { min: 500, max: 3000 },
         'Results': { min: 500, max: 2000 },
         'Discussion': { min: 600, max: 2000 },
         'Conclusion': { min: 200, max: 500 },
-        'References': { min: 10, max: Infinity } // Conteo de referencias
+        'References': { min: 5, max: Infinity } // Conteo de referencias
     };
 
-    // Patrones de citas por estilo
+    // Patrones de citas por estilo (sin cambios mayores, pero robustos)
     const citationPatterns = {
         'APA': {
             inText: /\(([^)]+?),\s*(\d{4})(?:;\s*[^)]+?,\s*\d{4})*\)/g,
@@ -101,12 +107,25 @@ document.addEventListener('DOMContentLoaded', () => {
         historyIndex = textHistory.length - 1;
     }
 
-    // Inicializar historia
+    // Inicializar historia y editor intuitivo
     if (paperText) {
         paperText.addEventListener('input', () => {
             saveToHistory(paperText.value);
         });
         saveToHistory(paperText.value || '');
+
+        // Atajos de teclado para undo/redo (Ctrl+Z / Ctrl+Y)
+        paperText.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'z') {
+                    e.preventDefault();
+                    if (undoButton) undoButton.click();
+                } else if (e.key === 'y') {
+                    e.preventDefault();
+                    if (redoButton) redoButton.click();
+                }
+            }
+        });
     }
 
     // Undo / Redo
@@ -127,26 +146,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Cargar archivo (TXT, MD, PDF)
+    // Cargar archivo (TXT, MD, PDF, DOCX)
     if (fileUpload) {
         fileUpload.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
 
-            reader.onload = (evt) => {
-                let text = evt.target.result;
-                if (typeof text === 'string') {
-                    paperText.value = text;
-                    saveToHistory(text);
-                    alert('Archivo cargado exitosamente.');
-                }
-            };
-
             reader.onerror = () => alert('Error al cargar el archivo.');
 
             if (file.type === 'text/plain' || file.name.endsWith('.md')) {
                 reader.readAsText(file);
+                reader.onload = (evt) => {
+                    paperText.value = evt.target.result;
+                    saveToHistory(evt.target.result);
+                    alert('Archivo cargado. Puedes editar el texto y usar las herramientas de análisis.');
+                };
             } else if (file.type === 'application/pdf' && typeof pdfjsLib !== 'undefined') {
                 reader.readAsArrayBuffer(file);
                 reader.onload = async (evt) => {
@@ -161,18 +176,29 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         paperText.value = text;
                         saveToHistory(text);
-                        alert('PDF cargado exitosamente.');
+                        alert('PDF cargado. Puedes editar el texto y usar las herramientas de análisis.');
                     } catch (err) {
                         alert('Error al procesar el PDF: ' + err.message);
                     }
                 };
+            } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' && typeof mammoth !== 'undefined') {
+                reader.readAsArrayBuffer(file);
+                reader.onload = (evt) => {
+                    mammoth.extractRawText({ arrayBuffer: evt.target.result })
+                        .then(result => {
+                            paperText.value = result.value;
+                            saveToHistory(result.value);
+                            alert('DOCX cargado. Puedes editar el texto y usar las herramientas de análisis.');
+                        })
+                        .catch(err => alert('Error al procesar DOCX: ' + err.message));
+                };
             } else {
-                alert('Formato no soportado. Usa TXT, MD o PDF.');
+                alert('Formato no soportado. Usa TXT, MD, PDF o DOCX.');
             }
         });
     }
 
-    // === Verificador de Estructura ===
+    // === Verificador de Estructura (adaptado para ensayos) ===
     if (checkStructureButton && paperText && structureResult) {
         checkStructureButton.addEventListener('click', () => {
             const text = paperText.value.trim();
@@ -200,10 +226,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let result = `<p><strong>Secciones encontradas:</strong> ${foundSections.length ? foundSections.join(', ') : 'Ninguna'}</p>`;
             if (missingSections.length) {
-                result += `<p><strong>Secciones faltantes sugeridas:</strong> ${missingSections.join(', ')}</p>`;
+                result += `<p><strong>Secciones sugeridas (adaptable a ensayos):</strong> ${missingSections.join(', ')}</p>`;
             }
 
-            // Verificar orden
+            // Verificar orden flexible
             let orderCorrect = true;
             for (let i = 0; i < sectionOrder.length - 1; i++) {
                 if (expectedOrder.indexOf(sectionOrder[i]) > expectedOrder.indexOf(sectionOrder[i + 1])) {
@@ -212,18 +238,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             result += orderCorrect
-                ? '<p><strong>Orden de secciones:</strong> Correcto.</p>'
-                : `<p><strong>Advertencia:</strong> El orden no sigue el estándar esperado (${expectedOrder.join(' → ')}).</p>`;
+                ? '<p><strong>Orden de secciones:</strong> Correcto (flexible para ensayos).</p>'
+                : `<p><strong>Advertencia:</strong> El orden no sigue un flujo estándar (${expectedOrder.join(' → ')}). Ajusta según tipo de texto.</p>`;
 
             // Subsecciones
             const subSectionCount = (text.match(/^\d+\.\d+\s+/gm) || []).length;
-            result += `<p><strong>Subsecciones detectadas:</strong> ${subSectionCount} (verifica consistencia en numeración).</p>`;
+            result += `<p><strong>Subsecciones detectadas:</strong> ${subSectionCount} (verifica consistencia).</p>`;
 
             structureResult.innerHTML = result;
         });
     }
 
-    // === Detector de Inconsistencias ===
+    // === Detector de Inconsistencias (generalizado) ===
     if (detectInconsistenciesButton && paperText && inconsistenciesResult) {
         detectInconsistenciesButton.addEventListener('click', () => {
             const text = paperText.value.trim();
@@ -242,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Referencias
-            const refSectionMatch = text.match(/(References|Bibliography|Referencias|Bibliografía)\s*([\s\S]*)$/i);
+            const refSectionMatch = text.match(/(References|Bibliography|Referencias|Bibliografía|Fuentes)\s*([\s\S]*)$/i);
             const refSection = refSectionMatch ? refSectionMatch[2] : '';
             const refMatches = [...refSection.matchAll(patterns.ref)];
             const uniqueRefs = new Set();
@@ -280,8 +306,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (undefinedAbbr.length) result += `<p><strong>Abreviaturas sin definición:</strong> ${undefinedAbbr.join(', ')}</p>`;
 
-            // Inconsistencias ortográficas comunes
-            const variants = ['analyse', 'analyze', 'organisation', 'organization', 'colour', 'color'];
+            // Inconsistencias ortográficas comunes (ampliado para ensayos)
+            const variants = ['analyse', 'analyze', 'organisation', 'organization', 'colour', 'color', 'realise', 'realize', 'centre', 'center'];
             const inconsistencies = [];
             for (let i = 0; i < variants.length; i += 2) {
                 const v1 = new RegExp(variants[i], 'gi');
@@ -290,14 +316,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     inconsistencies.push(`${variants[i]} vs ${variants[i + 1]}`);
                 }
             }
-            if (inconsistencies.length) result += `<p><strong>Inconsistencias ortográficas:</strong> ${inconsistencias.join('; ')}</p>`;
+            if (inconsistencies.length) result += `<p><strong>Inconsistencias ortográficas:</strong> ${inconsistencies.join('; ')}</p>`;
 
             if (!result) result = '<p>No se detectaron inconsistencias mayores.</p>';
             inconsistenciesResult.innerHTML = result;
         });
     }
 
-    // === Control de Longitud ===
+    // === Control de Longitud (adaptado para ensayos) ===
     if (checkLengthButton && paperText && lengthResult) {
         checkLengthButton.addEventListener('click', () => {
             const text = paperText.value.trim();
@@ -313,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <th style="border:1px solid #ccc; padding:8px;">Palabras</th>
                     <th style="border:1px solid #ccc; padding:8px;">Caracteres</th>
                     <th style="border:1px solid #ccc; padding:8px;">Oraciones</th>
-                    <th style="border:1px solid #ccc; padding:8px;">Recomendación</th>
+                    <th style="border:1px solid #ccc; padding:8px;">Recomendación (flexible)</th>
                 </tr></thead><tbody>`;
 
             for (let i = 1; i < parts.length; i += 2) {
@@ -333,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const chars = content.length;
                 const sentences = content.split(/[.!?]+/).filter(s => s.trim()).length;
 
-                const rec = lengthRecommendations[standardName] || { min: 0, max: Infinity };
+                const rec = lengthRecommendations[standardName] || { min: 100, max: Infinity };
                 let status = 'Adecuado';
                 if (standardName === 'References') {
                     const refCount = content.split('\n').filter(line => line.trim()).length;
@@ -358,7 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             result += '</tbody></table>';
-            if (parts.length <= 1) result = '<p>No se detectaron secciones claras.</p>';
+            if (parts.length <= 1) result = '<p>No se detectaron secciones claras. Prueba con encabezados estándar.</p>';
             lengthResult.innerHTML = result;
         });
     }
@@ -382,7 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const finalScore = Math.max(0, Math.round(score));
 
             reportOutput.innerHTML = `
-                <h3>Reporte de Revisión Académica</h3>
+                <h3>Reporte de Revisión (Adaptado a Ensayos y Papers)</h3>
                 <p><strong>Puntuación general:</strong> ${finalScore}/100</p>
                 <p><strong>Checklist:</strong> ${checked}/${total} ítems completados</p>
                 <hr>
@@ -392,14 +418,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <hr>
                 ${lengthResult.innerHTML}
                 <hr>
-                <p><em>Recomendación final:</em> ${finalScore >= 80 ? 'Listo para envío' : finalScore >= 60 ? 'Requiere revisiones menores' : 'Necesita mejoras importantes'}</p>
+                <p><em>Recomendación final:</em> ${finalScore >= 80 ? 'Listo para envío/publicación' : finalScore >= 60 ? 'Requiere revisiones menores' : 'Necesita mejoras importantes'}</p>
             `;
         });
     }
 
     // === Checklist Dinámico ===
     function updateChecklistItems() {
-        // Actualiza eventos de eliminación si es necesario
         document.querySelectorAll('.remove-item').forEach(btn => {
             btn.onclick = () => btn.parentElement.remove();
         });
@@ -466,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'reporte_revision_academica_' + new Date().toISOString().slice(0,10) + '.txt';
+                a.download = 'reporte_revision_' + new Date().toISOString().slice(0,10) + '.txt';
                 a.click();
                 URL.revokeObjectURL(url);
             }, 500);

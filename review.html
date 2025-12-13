@@ -4,17 +4,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Herramientas de Revisión Académica Gratuitas - Academic Tools</title>
-    <meta name="description" content="Verificador avanzado de estructura, detector de inconsistencias, control de longitud, checklist dinámico, soporte para múltiples formatos y más. Todo local.">
-    <meta name="keywords" content="revisión académica avanzada, checklist paper, herramientas para editores, academic tools free">
+    <title>Herramientas de Revisión Académica y Ensayística Gratuitas - Academic Tools</title>
+    <meta name="description" content="Verificador avanzado de estructura, detector de inconsistencias, control de longitud, checklist dinámico, soporte para TXT, MD, PDF, DOCX y más. Todo local.">
+    <meta name="keywords" content="revisión académica, ensayos, checklist, herramientas para editores, academic tools free">
     <link rel="stylesheet" href="styles.css">
-    <!-- Incluir pdf.js para soporte PDF (descargar y hostear localmente) -->
+    <!-- pdf.js para PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.338/pdf.min.js"></script>
+    <!-- Mammoth para DOCX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.11.0/mammoth.browser.min.js"></script>
 </head>
 <body>
     <header>
         <img src="assets/logoP.png" alt="Academic Tools Logo" class="logo">
-        <h1>Herramientas de Revisión Académica Avanzadas</h1>
+        <h1>Herramientas de Revisión para Papers y Ensayos</h1>
         <nav>
             <ul>
                 <li><a href="index.html">Inicio</a></li>
@@ -28,24 +30,25 @@
     <main>
         <section>
             <h2>Cargar Documento</h2>
-            <p>Soporte para TXT, MD y PDF.</p>
-            <input type="file" id="file-upload" accept=".txt,.md,.pdf">
+            <p>Soporte para TXT, MD, PDF y DOCX. Después de cargar, edita y analiza.</p>
+            <input type="file" id="file-upload" accept=".txt,.md,.pdf,.docx">
         </section>
         <section>
-            <h2>Editor de Texto con Undo/Redo</h2>
-            <textarea id="paper-text" placeholder="Pega o edita tu paper..."></textarea>
-            <button id="undo">Undo</button>
-            <button id="redo">Redo</button>
+            <h2>Editor de Texto con Undo/Redo (Ctrl+Z / Ctrl+Y)</h2>
+            <p>Edita tu texto aquí. Usa atajos de teclado para deshacer/rehacer cambios.</p>
+            <textarea id="paper-text" placeholder="Pega o edita tu paper/ensayo..."></textarea>
+            <button id="undo">Deshacer (Ctrl+Z)</button>
+            <button id="redo">Rehacer (Ctrl+Y)</button>
         </section>
         <section>
-            <h2>Verificador de Estructura Avanzado</h2>
-            <p>Verifica secciones, orden, subsecciones y variaciones en nombres.</p>
+            <h2>Verificador de Estructura (para Papers y Ensayos)</h2>
+            <p>Verifica secciones, orden, subsecciones y variaciones (adaptado a textos generales).</p>
             <button id="check-structure">Verificar Estructura</button>
             <div id="structure-result"></div>
         </section>
         <section>
-            <h2>Detector de Inconsistencias Avanzado</h2>
-            <p>Detecta inconsistencias en citas (múltiples estilos), abreviaturas y términos.</p>
+            <h2>Detector de Inconsistencias</h2>
+            <p>Detecta inconsistencias en citas, abreviaturas y términos (generalizado).</p>
             <select id="citation-style">
                 <option value="APA">APA</option>
                 <option value="MLA">MLA</option>
@@ -56,41 +59,40 @@
             <div id="inconsistencies-result"></div>
         </section>
         <section>
-            <h2>Control de Longitud por Sección Avanzado</h2>
-            <p>Controla palabras, caracteres, oraciones y recomendaciones por sección.</p>
+            <h2>Control de Longitud por Sección</h2>
+            <p>Controla palabras, caracteres, oraciones y recomendaciones (flexible para ensayos).</p>
             <button id="check-length">Controlar Longitud</button>
             <div id="length-result"></div>
         </section>
         <section>
-            <h2>Checklist de Envío a Revista Dinámico</h2>
-            <p>Checklist interactivo, editable y categorizable.</p>
+            <h2>Checklist Personalizable</h2>
+            <p>Checklist interactivo para revisión de textos (agrega/elimina ítems).</p>
             <ul id="checklist">
-                <li><input type="checkbox" id="chk-abstract"> Abstract completo (150-250 palabras) <button class="remove-item">Eliminar</button></li>
-                <li><input type="checkbox" id="chk-keywords"> Palabras clave (3-5) <button class="remove-item">Eliminar</button></li>
+                <li><input type="checkbox" id="chk-title"> Título atractivo <button class="remove-item">Eliminar</button></li>
+                <li><input type="checkbox" id="chk-abstract"> Abstract/Resumen completo <button class="remove-item">Eliminar</button></li>
                 <li><input type="checkbox" id="chk-intro"> Introducción clara <button class="remove-item">Eliminar</button></li>
-                <li><input type="checkbox" id="chk-methods"> Métodos detallados <button class="remove-item">Eliminar</button></li>
-                <li><input type="checkbox" id="chk-results"> Resultados con figuras <button class="remove-item">Eliminar</button></li>
-                <li><input type="checkbox" id="chk-discussion"> Discusión y conclusiones <button class="remove-item">Eliminar</button></li>
+                <li><input type="checkbox" id="chk-body"> Cuerpo desarrollado <button class="remove-item">Eliminar</button></li>
+                <li><input type="checkbox" id="chk-analysis"> Análisis profundo <button class="remove-item">Eliminar</button></li>
+                <li><input type="checkbox" id="chk-conclusion"> Conclusión sólida <button class="remove-item">Eliminar</button></li>
                 <li><input type="checkbox" id="chk-references"> Referencias completas <button class="remove-item">Eliminar</button></li>
-                <li><input type="checkbox" id="chk-format"> Formato según guía de la revista <button class="remove-item">Eliminar</button></li>
-                <li><input type="checkbox" id="chk-ethics"> Declaración ética si aplica <button class="remove-item">Eliminar</button></li>
-                <li><input type="checkbox" id="chk-funding"> Financiamiento declarado <button class="remove-item">Eliminar</button></li>
+                <li><input type="checkbox" id="chk-format"> Formato consistente <button class="remove-item">Eliminar</button></li>
+                <li><input type="checkbox" id="chk-grammar"> Gramática y ortografía revisadas <button class="remove-item">Eliminar</button></li>
             </ul>
-            <input type="text" id="new-checklist-item" placeholder="Nuevo ítem...">
+            <input type="text" id="new-checklist-item" placeholder="Nuevo ítem (ej: 'Coherencia argumental')">
             <button id="add-checklist-item">Agregar Ítem</button>
             <button id="save-checklist">Guardar Estado</button>
             <button id="load-checklist">Cargar Estado</button>
         </section>
         <section>
             <h2>Generar Reporte Completo</h2>
-            <p>Compila todos los análisis con puntuación y sugerencias.</p>
+            <p>Compila todos los análisis con puntuación y sugerencias (para cualquier texto).</p>
             <button id="generate-report">Generar Reporte</button>
             <div id="report-output"></div>
             <button id="export-results">Exportar como TXT</button>
         </section>
     </main>
     <footer>
-        <p>Academic Tools - Gratuito, ético y robusto. Nada sale de tu computador. Soporte para múltiples formatos y estilos.</p>
+        <p>Academic Tools - Gratuito, ético y robusto. Soporte para múltiples formatos y tipos de textos. Nada sale de tu computador.</p>
     </footer>
     <script src="app.js"></script>
     <script src="tools/review.js"></script>
