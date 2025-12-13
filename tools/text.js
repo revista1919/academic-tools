@@ -366,6 +366,46 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Helper: cargar un script dinámicamente con timeout
+  function loadScript(url, timeout = 15000) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      let done = false;
+      s.src = url;
+      s.async = true;
+      s.onload = () => { if (!done) { done = true; resolve(); } };
+      s.onerror = (e) => { if (!done) { done = true; reject(new Error('Failed to load ' + url)); } };
+      document.head.appendChild(s);
+      setTimeout(() => { if (!done) { done = true; reject(new Error('Timeout loading ' + url)); } }, timeout);
+    });
+  }
+
+  // Intentar asegurar que PDFTeX esté definido: probar rutas comunes/candidatas
+  async function ensurePDFTeX() {
+    if (typeof PDFTeX !== 'undefined') return;
+    const candidates = [
+      './texlive.js',
+      '/texlive.js',
+      // intento con un paquete wasm público (puede no existir en todos los entornos)
+      'https://unpkg.com/pdftex-wasm@latest/dist/pdftex.js'
+    ];
+    let lastErr = null;
+    for (const url of candidates) {
+      try {
+        console.log('Intentando cargar PDFTeX desde', url);
+        await loadScript(url);
+        if (typeof PDFTeX !== 'undefined') {
+          console.log('PDFTeX disponible tras cargar', url);
+          return;
+        }
+      } catch (e) {
+        lastErr = e;
+        console.warn('Carga fallida desde', url, e);
+      }
+    }
+    throw new Error('PDFTeX no disponible. Último error: ' + (lastErr && lastErr.message));
+  }
+
   // Compilar LaTeX a PDF localmente
   if (compileButton && pdfPreview) {
     compileButton.addEventListener('click', async () => {
@@ -375,13 +415,28 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      try {
+        await ensurePDFTeX();
+      } catch (e) {
+        console.error('Error asegurando PDFTeX:', e);
+        alert(
+          'No se pudo inicializar el compilador local (PDFTeX no está definido).\n\n' +
+          'Sugerencias:\n' +
+          '- Sirve localmente un archivo texlive.js en la raíz del sitio (./texlive.js) o en /texlive.js\n' +
+          "- -o- Usa un paquete wasm como pdftex-wasm y expón PDFTeX en la página.\n" +
+          '- Alternativa: exporta el .tex (botón "export-tex") y compílalo externamente.\n\n' +
+          'Detalles: ' + e.message
+        );
+        return;
+      }
+
       let pdftex;
       try {
         pdftex = new PDFTeX();
         console.log("PDFTeX inicializado correctamente");
       } catch (e) {
         console.error("Error creando PDFTeX:", e);
-        alert("Error al inicializar el compilador. Verifica que texlive.js cargue bien.");
+        alert("Error al inicializar el compilador después de cargar la librería: " + e.message);
         return;
       }
 
