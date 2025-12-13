@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test SwiftLaTeX</title>
+</head>
+<body>
+    <h1>Test de Compilación SwiftLaTeX</h1>
+    <p>Abre consola para ver resultado.</p>
+    <script src="/academic-tools/swiftlatex/swiftlatexxetex.js"></script>
+    <script>
+    (async () => {
+      const r = await SwiftLaTeX.compile({
+        engine: "xetex",
+        mainFile: "main.tex",
+        files: {
+          "main.tex": `
+\\documentclass{article}
+\\begin{document}
+Hola mundo
+\\end{document}
+`
+        }
+      });
+
+      console.log("PDF bytes:", r.pdf?.byteLength);
+    })();
+    </script>
+</body>
+</html>

@@ -375,15 +375,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      const fullLatex = preambleEditor.getValue() + mainEditor.getValue();
+      // Fix: Concatenación segura de fullLatex
+      let fullLatex = preambleEditor.getValue();
+      if (!fullLatex.includes('\\begin{document}')) {
+        fullLatex += '\n\\begin{document}\n';
+      }
+      fullLatex += mainEditor.getValue();
+      if (!fullLatex.includes('\\end{document}')) {
+        fullLatex += '\n\\end{document}\n';
+      }
+
       const bib = bibEditor ? bibEditor.getValue() : '';
 
       try {
-        // Preparar objeto files
+        // Fix: Preparar files sin bib vacío
         const files = {
-          "main.tex": fullLatex,
-          "refs.bib": bib
+          "main.tex": fullLatex
         };
+        if (bib && bib.trim()) {
+          files["refs.bib"] = bib;
+        }
 
         // Agregar imágenes como Uint8Array
         images.forEach(img => {
