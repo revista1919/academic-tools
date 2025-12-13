@@ -366,10 +366,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Compilar LaTeX a PDF localmente con SwiftLaTeX
+  // Compilar LaTeX a PDF localmente con SwiftLaTeX wrapper
   if (compileButton && pdfPreview) {
     compileButton.addEventListener('click', async () => {
-      console.log("Iniciando compilación con SwiftLaTeX XeTeXEngine");
+      console.log("Iniciando compilación con SwiftLaTeX wrapper (xetex)");
       if (!preambleEditor || !mainEditor) {
         alert("Faltan editores");
         return;
@@ -379,28 +379,27 @@ document.addEventListener('DOMContentLoaded', () => {
       const bib = bibEditor ? bibEditor.getValue() : '';
 
       try {
-        // Inicializar el engine (puede tardar en la primera vez)
-        const engine = new XeTeXEngine();  // O PdfTeXEngine si prefieres, pero XeTeX es mejor para UTF-8
-        await engine.loadEngine();
+        // Preparar objeto files
+        const files = {
+          "main.tex": fullLatex,
+          "refs.bib": bib
+        };
 
-        // Escribir archivos en el FS virtual
-        engine.writeMemFSFile('main.tex', fullLatex);
-        if (bib) engine.writeMemFSFile('refs.bib', bib);
-
+        // Agregar imágenes como Uint8Array
         images.forEach(img => {
-          const binary = atob(img.data);
-          const array = new Uint8Array(binary.length);
-          for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
-          engine.writeMemFSFile(img.name, array);
-          console.log("Imagen escrita:", img.name);
+          files[img.name] = Uint8Array.from(atob(img.data), c => c.charCodeAt(0));
+          console.log("Imagen agregada a files:", img.name);
         });
 
-        // Configurar y compilar
-        engine.setEngineMainFile('main.tex');
+        // Compilar usando el wrapper
         console.log("Compilando LaTeX...");
-        const result = await engine.compileLaTeX();
+        const result = await SwiftLaTeX.compile({
+          engine: "xetex",
+          mainFile: "main.tex",
+          files: files
+        });
 
-        if (result.status === 0) {
+        if (result.pdf) {
           const pdfBlob = new Blob([result.pdf], { type: 'application/pdf' });
           const pdfUrl = URL.createObjectURL(pdfBlob);
           pdfPreview.src = pdfUrl;
@@ -410,11 +409,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           console.error('Error en compilación:', result.log);
           alert('Error en compilación: Revisa la consola para detalles.');
-          if (compileLog) compileLog.textContent = result.log;
+          if (compileLog) compileLog.textContent = result.log || 'Error desconocido.';
         }
       } catch (e) {
         console.error('Error en compilación con SwiftLaTeX:', e);
-        alert('Error inicializando o compilando: ' + e.message + '\nAsegúrate de que XeTeXEngine.js y xetex-engine.wasm estén cargados correctamente.');
+        alert('Error inicializando o compilando: ' + e.message + '\nAsegúrate de que swiftlatexxetex.js y .wasm estén cargados correctamente.');
+        if (compileLog) compileLog.textContent = e.message;
       }
     });
   }
