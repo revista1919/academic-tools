@@ -1,28 +1,32 @@
 // tools/text.js
+import { EditorView, basicSetup } from "@codemirror/basic-setup";
+import { EditorState } from "@codemirror/state";
+import { autocomplete } from "@codemirror/autocomplete";
+import { latex } from "codemirror-lang-latex";
+import { bibtex } from "@citedrive/codemirror-lang-bibtex";
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Libraries assumed loaded: KaTeX, html2canvas (for math image), JSZip, bibtex-parse-js, pdf.js (for PDF preview if needed), texlive.js for compilation
     const templates = {
-        'APA': `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{geometry}\n\\geometry{margin=1in}\n\\usepackage{setspace}\n\\doublespacing\n`,
-        'Chicago': `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{geometry}\n\\geometry{margin=1in}\n`,
-        'IEEE': `\\documentclass[conference]{IEEEtran}\n\\usepackage[utf8]{inputenc}\n`,
-        'Springer': `\\documentclass{svjour3}\n\\usepackage[utf8]{inputenc}\n`,
-        'Elsevier': `\\documentclass{elsarticle}\n\\usepackage[utf8]{inputenc}\n`,
-        'Tesis Chilena': `\\documentclass{book}\n\\usepackage[spanish]{babel}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{geometry}\n\\geometry{a4paper, margin=2.5cm}\n`,
-        // Add more
+        'APA': `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{geometry}\n\\geometry{margin=1in}\n\\usepackage{setspace}\n\\doublespacing\n\\usepackage{natbib}\n\\bibpunct{(}{)}{;}{a}{,}{,}\n`,
+        'Chicago': `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{geometry}\n\\geometry{margin=1in}\n\\usepackage{chicago}\n`,
+        'IEEE': `\\documentclass[conference]{IEEEtran}\n\\usepackage[utf8]{inputenc}\n\\usepackage{cite}\n`,
+        'Springer': `\\documentclass{svjour3}\n\\usepackage[utf8]{inputenc}\n\\usepackage{natbib}\n`,
+        'Elsevier': `\\documentclass{elsarticle}\n\\usepackage[utf8]{inputenc}\n\\usepackage{natbib}\n`,
+        'Tesis Chilena': `\\documentclass{book}\n\\usepackage[spanish]{babel}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{geometry}\n\\geometry{a4paper, margin=2.5cm}\n\\usepackage{natbib}\n`,
+        // Agrega más plantillas con paquetes comunes para cada estilo
     };
 
+    // Elementos del DOM
     const templateSelect = document.getElementById('template-select');
     const generateStructureButton = document.getElementById('generate-structure');
-    const editor = document.getElementById('editor');
+    const preambleEditorElem = document.getElementById('preamble-editor');
+    const mainEditorElem = document.getElementById('main-editor');
+    const bibEditorElem = document.getElementById('bib-editor');
     const sidebar = document.getElementById('sidebar');
-    const preambleTextarea = document.getElementById('preamble');
-    const bibList = document.getElementById('bib-list');
     const doiInput = document.getElementById('doi-input');
     const fetchBibButton = document.getElementById('fetch-bib');
     const isbnInput = document.getElementById('isbn-input');
     const fetchIsbnButton = document.getElementById('fetch-isbn');
-    const convertButton = document.getElementById('convert-to-latex');
-    const latexOutput = document.getElementById('latex-output');
     const compileButton = document.getElementById('compile-pdf');
     const pdfPreview = document.getElementById('pdf-preview');
     const exportTexButton = document.getElementById('export-tex');
@@ -34,127 +38,100 @@ document.addEventListener('DOMContentLoaded', () => {
     const darkModeToggle = document.getElementById('dark-mode-toggle');
     const expandButton = document.getElementById('expand-paragraph');
     const rewriteButton = document.getElementById('rewrite-intro');
-    const textCount = document.getElementById('text-count');
-    const cleanButton = document.getElementById('clean-text');
-
-    let bibEntries = []; // Array of bib objects
+    let preambleEditor, mainEditor, bibEditor;
     let versions = JSON.parse(localStorage.getItem('versions')) || [];
-    let images = []; // {name, data} for figures
-    let pdftex; // PDFTeX instance
+    let images = []; // Array de {name, base64}
+    let pdftex = new PDFTeX(); // Inicializa el compilador local
 
-    // Init PDFTeX
-    if (compileButton) {
-        pdftex = new PDFTeX();
-        pdftex.set_TEXINPUTS(".:/texmf:"); // Adjust if needed
+
+
+    // Editor para preamble (LaTeX mode)
+    if (preambleEditorElem) {
+        const preambleState = EditorState.create({
+            doc: '',
+            extensions: [
+                basicSetup,
+                autocomplete,
+                latex({ biblatex: false, smartSuggest: true, syntaxLinter: true })
+            ]
+        });
+        preambleEditor = new EditorView({
+            state: preambleState,
+            parent: preambleEditorElem
+        });
     }
 
-    // Dark mode
+    // Editor principal para LaTeX body
+    if (mainEditorElem) {
+        const mainState = EditorState.create({
+            doc: '',
+            extensions: [
+                basicSetup,
+                autocomplete,
+                latex({ biblatex: false, smartSuggest: true, syntaxLinter: true })
+            ]
+        });
+        mainEditor = new EditorView({
+            state: mainState,
+            parent: mainEditorElem
+        });
+        mainEditor.dom.addEventListener('change', updateSidebar); // Actualiza sidebar en cambios
+    }
+
+    // Editor para BibTeX
+    if (bibEditorElem) {
+        const bibState = EditorState.create({
+            doc: '',
+            extensions: [
+                basicSetup,
+                autocomplete,
+                bibtex({ biblatex: false, smartSuggest: true, syntaxLinter: true })
+            ]
+        });
+        bibEditor = new EditorView({
+            state: bibState,
+            parent: bibEditorElem
+        });
+    }
+
+    // Modo oscuro
     if (darkModeToggle) {
         darkModeToggle.addEventListener('click', () => {
             document.body.classList.toggle('dark');
+            const theme = document.body.classList.contains('dark') ? EditorView.theme({ "&": { backgroundColor: "#1e1e1e", color: "#fff" } }) : EditorView.theme({ "&": { backgroundColor: "#fff", color: "#000" } });
+            preambleEditor.dispatch({ effects: EditorView.updateListener.of(() => {}) }); // Actualiza tema, pero CM6 necesita extensión personal para tema
+            // Nota: Para tema completo, agregar extensión theme en extensions
             localStorage.setItem('darkMode', document.body.classList.contains('dark'));
         });
         if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark');
     }
 
-    // Shortcuts
-    document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey) {
-            switch (e.key) {
-                case 'b': document.execCommand('bold'); break;
-                case 'i': document.execCommand('italic'); break;
-                case '1': document.execCommand('formatBlock', false, 'h1'); break;
-                case '2': document.execCommand('formatBlock', false, 'h2'); break;
-                case 'l': document.execCommand('insertUnorderedList'); break;
-                // Add more
-            }
-        }
-    });
-
-    // Update count
-    if (editor && textCount) {
-        editor.addEventListener('input', updateCount);
-        function updateCount() {
-            const text = editor.innerText.trim();
-            const words = text ? text.split(/\s+/).length : 0;
-            const chars = text.length;
-            const paras = editor.querySelectorAll('p').length || 1;
-            const citations = editor.querySelectorAll('.cite').length;
-            textCount.innerHTML = `Palabras: ${words} | Caracteres: ${chars} | Párrafos: ${paras} | Citas: ${citations}`;
-            updateSidebar();
-        }
-        updateCount();
-    }
-
-    // Update sidebar with structure
-    function updateSidebar() {
-        if (sidebar) {
-            sidebar.innerHTML = '';
-            const headings = editor.querySelectorAll('h1, h2, h3');
-            headings.forEach(h => {
-                const item = document.createElement('div');
-                item.textContent = h.textContent;
-                item.classList.add('sidebar-item', `level-${h.tagName[1]}`);
-                item.addEventListener('click', () => h.scrollIntoView());
-                sidebar.appendChild(item);
-            });
-        }
-    }
-
-    // Generate structure
-    if (generateStructureButton && templateSelect && preambleTextarea && editor) {
+    // Generar estructura de proyecto
+    if (generateStructureButton && templateSelect) {
         generateStructureButton.addEventListener('click', () => {
             const template = templateSelect.value;
-            preambleTextarea.value = templates[template] || templates['APA'];
-            editor.innerHTML = '<h1>Introducción</h1><p>Escribe aquí...</p><h1>Metodología</h1><p>...</p><h1>Conclusiones</h1><p>...</p>';
+            preambleEditor.dispatch({ changes: { from: 0, to: preambleEditor.state.doc.length, insert: templates[template] || templates['APA'] } });
+            mainEditor.dispatch({ changes: { from: 0, to: mainEditor.state.doc.length, insert: '\\begin{document}\n\\maketitle\n\n\\section{Introducci\\on}\nEscribe aqu\\i...\n\n\\section{Metodolog\\ia}\n...\n\n\\section{Conclusiones}\n...\n\n\\bibliographystyle{plainnat}\n\\bibliography{refs}\n\\end{document}' } });
+            bibEditor.dispatch({ changes: { from: 0, to: bibEditor.state.doc.length, insert: '' } });
             updateSidebar();
         });
     }
 
-    // Toolbar buttons
-    const boldBtn = document.getElementById('bold-btn');
-    const italicBtn = document.getElementById('italic-btn');
-    const h1Btn = document.getElementById('h1-btn');
-    const h2Btn = document.getElementById('h2-btn');
-    const ulBtn = document.getElementById('ul-btn');
-    const olBtn = document.getElementById('ol-btn');
-    const citeBtn = document.getElementById('cite-btn');
-    const mathBtn = document.getElementById('math-btn');
-    const figureBtn = document.getElementById('figure-btn');
+    // Inserciones rápidas en main editor
+    if (insertSectionBtn) insertSectionBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\section{}'));
+    if (insertCiteBtn) insertCiteBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\cite{}'));
+    if (insertMathBtn) insertMathBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\[\n\\]'));
+    if (insertFigureBtn) insertFigureBtn.addEventListener('click', () => insertFigure(mainEditor));
+    if (insertTableBtn) insertTableBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\begin{table}[h]\n\\centering\n\\begin{tabular}{cc}\n a & b \\\\ \n c & d \\\\ \n\\end{tabular}\n\\caption{}\n\\label{}\n\\end{table}'));
 
-    if (boldBtn) boldBtn.addEventListener('click', () => document.execCommand('bold'));
-    if (italicBtn) italicBtn.addEventListener('click', () => document.execCommand('italic'));
-    if (h1Btn) h1Btn.addEventListener('click', () => document.execCommand('formatBlock', false, 'h1'));
-    if (h2Btn) h2Btn.addEventListener('click', () => document.execCommand('formatBlock', false, 'h2'));
-    if (ulBtn) ulBtn.addEventListener('click', () => document.execCommand('insertUnorderedList'));
-    if (olBtn) olBtn.addEventListener('click', () => document.execCommand('insertOrderedList'));
-    if (citeBtn) citeBtn.addEventListener('click', insertCite);
-    if (mathBtn) mathBtn.addEventListener('click', insertMath);
-    if (figureBtn) figureBtn.addEventListener('click', insertFigure);
-
-    function insertCite() {
-        const key = prompt('Clave de cita (e.g., autor2020)');
-        if (key) {
-            const span = document.createElement('span');
-            span.classList.add('cite');
-            span.dataset.key = key;
-            span.textContent = `[\\cite{${key}}]`;
-            document.execCommand('insertHTML', false, span.outerHTML);
-        }
+    function insertAtCursor(editorView, text) {
+        const state = editorView.state;
+        const transaction = state.update({ changes: { from: state.selection.main.head, insert: text } });
+        editorView.dispatch(transaction);
+        editorView.focus();
     }
 
-    function insertMath() {
-        const latex = prompt('Fórmula LaTeX');
-        if (latex) {
-            const span = document.createElement('span');
-            span.classList.add('math');
-            span.dataset.latex = latex;
-            katex.render(latex, span, { throwOnError: false });
-            document.execCommand('insertHTML', false, span.outerHTML);
-        }
-    }
-
-    function insertFigure() {
+    function insertFigure(editorView) {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
@@ -162,137 +139,91 @@ document.addEventListener('DOMContentLoaded', () => {
             const file = e.target.files[0];
             const reader = new FileReader();
             reader.onload = (r) => {
-                const img = document.createElement('img');
-                img.src = r.target.result;
-                img.alt = prompt('Caption');
-                img.dataset.label = prompt('Label');
-                img.style.width = '200px';
-                const name = file.name;
-                images.push({name, data: r.target.result.split(',')[1]}); // base64
-                document.execCommand('insertHTML', false, img.outerHTML);
+                const name = sanitizeFilename(file.name);
+                images.push({name, data: r.target.result.split(',')[1]});
+                insertAtCursor(editorView, `\\begin{figure}[h]\n\\centering\n\\includegraphics[width=0.8\\textwidth]{${name}}\n\\caption{}\n\\label{}\n\\end{figure}`);
             };
             reader.readAsDataURL(file);
         };
         input.click();
     }
 
-    // Fetch Bib from DOI
-    if (fetchBibButton && doiInput && bibList) {
+    function sanitizeFilename(name) {
+        return name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    }
+
+    // Actualizar sidebar con estructura LaTeX
+    function updateSidebar() {
+        if (sidebar) {
+            sidebar.innerHTML = '';
+            const latex = mainEditor.state.doc.toString();
+            const matches = latex.matchAll(/\\(chapter|section|subsection|subsubsection)\{([^{}]+)\}/g);
+            for (const match of matches) {
+                const level = {chapter: 0, section: 1, subsection: 2, subsubsection: 3}[match[1]];
+                const title = match[2];
+                const item = document.createElement('div');
+                item.textContent = title;
+                item.classList.add('sidebar-item');
+                item.style.paddingLeft = `${level * 15}px`;
+                item.addEventListener('click', () => {
+                    const pos = latex.indexOf(match[0]);
+                    mainEditor.dispatch({ selection: { anchor: pos } });
+                    mainEditor.focus();
+                });
+                sidebar.appendChild(item);
+            }
+        }
+    }
+
+    // Fetch BibTeX desde DOI y agregar a bib editor
+    if (fetchBibButton && doiInput) {
         fetchBibButton.addEventListener('click', async () => {
             const doi = doiInput.value.trim();
             if (!doi) return;
             try {
                 const response = await fetch(`https://api.crossref.org/works/${doi}/transform/application/x-bibtex`);
+                if (!response.ok) throw new Error('Failed to fetch');
                 const bibtext = await response.text();
-                const entries = bibtexParse.toJSON(bibtext);
-                bibEntries.push(...entries);
-                renderBibList();
+                const currentBib = bibEditor.state.doc.toString();
+                bibEditor.dispatch({ changes: { from: currentBib.length, insert: (currentBib ? '\n' : '') + bibtext } });
             } catch (e) {
-                alert('Error fetching BibTeX: ' + e.message);
+                alert('Error al obtener BibTeX: ' + e.message);
             }
         });
     }
 
-    // Fetch from ISBN
-    if (fetchIsbnButton && isbnInput && bibList) {
+    // Fetch desde ISBN
+    if (fetchIsbnButton && isbnInput) {
         fetchIsbnButton.addEventListener('click', async () => {
             const isbn = isbnInput.value.trim();
             if (!isbn) return;
             try {
                 const response = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
+                if (!response.ok) throw new Error('Failed to fetch');
                 const data = await response.json();
-                const entry = {
-                    '@type': 'book',
-                    author: data.authors.map(a => a.name).join(' and '),
-                    title: data.title,
-                    year: data.publish_date.split(' ')[2] || new Date().getFullYear(),
-                    publisher: data.publishers[0],
-                    key: (data.authors[0].name.split(' ')[1] + data.publish_date.split(' ')[2]).toLowerCase()
-                };
-                bibEntries.push(entry);
-                renderBibList();
+                const year = data.publish_date ? data.publish_date.split(' ').pop() : new Date().getFullYear();
+                const author = data.authors ? data.authors.map(a => a.name).join(' and ') : 'Unknown';
+                const publisher = data.publishers ? data.publishers[0] : 'Unknown';
+                const key = (author.split(' ')[0] + year).toLowerCase();
+                const bib = `@book{${key},\n  author = {${author}},\n  title = {${data.title}},\n  year = {${year}},\n  publisher = {${publisher}},\n}\n`;
+                const currentBib = bibEditor.state.doc.toString();
+                bibEditor.dispatch({ changes: { from: currentBib.length, insert: (currentBib ? '\n' : '') + bib } });
             } catch (e) {
-                alert('Error fetching ISBN: ' + e.message);
+                alert('Error al obtener ISBN: ' + e.message);
             }
         });
     }
 
-    function renderBibList() {
-        bibList.innerHTML = '';
-        bibEntries.forEach((entry, i) => {
-            const div = document.createElement('div');
-            div.textContent = `${entry.key}: ${entry.title} by ${entry.author} (${entry.year})`;
-            const removeBtn = document.createElement('button');
-            removeBtn.textContent = 'Eliminar';
-            removeBtn.addEventListener('click', () => {
-                bibEntries.splice(i, 1);
-                renderBibList();
-            });
-            div.appendChild(removeBtn);
-            bibList.appendChild(div);
-        });
-    }
-
-    // Clean text (for pasted)
-    if (cleanButton && editor) {
-        cleanButton.addEventListener('click', () => {
-            let text = editor.innerText;
-            text = text.replace(/-\s*\n/g, '');
-            text = text.replace(/\n+/g, '\n');
-            text = text.replace(/\s+/g, ' ');
-            text = text.replace(/([a-záéíóú])\n([a-záéíóú])/g, '$1 $2');
-            editor.innerText = text.trim();
-            updateCount();
-        });
-    }
-
-    // Convert to LaTeX
-    if (convertButton && editor && latexOutput) {
-        convertButton.addEventListener('click', () => {
-            const latex = convertHtmlToLatex(editor);
-            latexOutput.textContent = latex;
-        });
-    }
-
-    function convertHtmlToLatex(node) {
-        let latex = '';
-        Array.from(node.childNodes).forEach(child => {
-            if (child.nodeType === 3) { // Text
-                latex += child.textContent.replace(/&/g, '\\&').replace(/%/g, '\\%').replace(/\$/g, '\\$').replace(/_/g, '\\_').replace(/#/g, '\\#').replace(/"([^"]*)"/g, '``$1\'\'');
-            } else if (child.nodeType === 1) {
-                switch (child.tagName.toLowerCase()) {
-                    case 'b': case 'strong': latex += `\\textbf{${convertHtmlToLatex(child)}}`; break;
-                    case 'i': case 'em': latex += `\\textit{${convertHtmlToLatex(child)}}`; break;
-                    case 'h1': latex += `\\chapter{${convertHtmlToLatex(child)}}\n`; break;
-                    case 'h2': latex += `\\section{${convertHtmlToLatex(child)}}\n`; break;
-                    case 'h3': latex += `\\subsection{${convertHtmlToLatex(child)}}\n`; break;
-                    case 'ul': latex += `\\begin{itemize}\n${Array.from(child.children).map(li => `\\item ${convertHtmlToLatex(li)}\n`).join('')}\\end{itemize}\n`; break;
-                    case 'ol': latex += `\\begin{enumerate}\n${Array.from(child.children).map(li => `\\item ${convertHtmlToLatex(li)}\n`).join('')}\\end{enumerate}\n`; break;
-                    case 'p': latex += `${convertHtmlToLatex(child)}\n\n`; break;
-                    case 'span':
-                        if (child.classList.contains('cite')) latex += `\\cite{${child.dataset.key}}`;
-                        if (child.classList.contains('math')) latex += `\\(${child.dataset.latex}\\)`; 
-                        break;
-                    case 'img':
-                        const name = images.find(img => img.data === child.src.split(',')[1]).name;
-                        latex += `\\begin{figure}[h]\n\\centering\n\\includegraphics[width=\\textwidth]{${name}}\n\\caption{${child.alt}}\n\\label{${child.dataset.label}}\n\\end{figure}\n`;
-                        break;
-                    // Add table, etc.
-                    default: latex += convertHtmlToLatex(child);
-                }
-            }
-        });
-        return latex;
-    }
-
-    // Compile to PDF
-    if (compileButton && latexOutput && pdfPreview) {
+    // Compilar LaTeX a PDF localmente
+    if (compileButton && pdfPreview) {
         compileButton.addEventListener('click', async () => {
-            const preamble = preambleTextarea.value;
-            const body = convertHtmlToLatex(editor);
-            const bibLatex = '\\begin{thebibliography}{99}\n' + bibEntries.map(entry => `\\bibitem{${entry.key}} ${entry.author} (${entry.year}). ${entry.title}. ${entry.journal || entry.publisher || ''}.\n`).join('') + '\\end{thebibliography}\n';
-            const fullLatex = preamble + '\\begin{document}\n' + body + bibLatex + '\\end{document}';
-            // Add images
+            const preamble = preambleEditor.state.doc.toString();
+            const body = mainEditor.state.doc.toString();
+            const bib = bibEditor.state.doc.toString();
+            const fullLatex = preamble + body;
+            // Agregar archivos al filesystem virtual de PDFTeX
+            pdftex.set_TEXINPUTS(".:/texmf:");
+            if (bib) pdftex.add_file('refs.bib', new Uint8Array(new TextEncoder().encode(bib)));
             images.forEach(img => {
                 const binary = atob(img.data);
                 const array = new Uint8Array(binary.length);
@@ -300,47 +231,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 pdftex.add_file(img.name, array);
             });
             try {
-                const pdfUrl = await pdftex.compile(fullLatex);
-                pdfPreview.src = pdfUrl;
+                const pdfBytes = await pdftex.compile(fullLatex);
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                pdfPreview.src = URL.createObjectURL(blob);
                 pdfPreview.style.display = 'block';
             } catch (e) {
-                alert('Error compiling: ' + e.message);
+                alert('Error en compilación: ' + e.message);
             }
         });
     }
 
-    // Export .tex
-    if (exportTexButton && latexOutput) {
+    // Exportar .tex
+    if (exportTexButton) {
         exportTexButton.addEventListener('click', () => {
-            const blob = new Blob([latexOutput.textContent], { type: 'text/plain' });
+            const full = preambleEditor.state.doc.toString() + mainEditor.state.doc.toString();
+            const blob = new Blob([full], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = 'document.tex';
             a.click();
+            URL.revokeObjectURL(url);
         });
     }
 
-    // Export .zip
+    // Exportar .zip con proyecto
     if (exportZipButton) {
         exportZipButton.addEventListener('click', async () => {
             const zip = new JSZip();
-            zip.file('document.tex', latexOutput.textContent);
-            bibEntries.forEach((entry, i) => zip.file(`ref${i}.bib`, bibtexParse.toBibtex([entry])));
-            images.forEach(img => zip.file(img.name, atob(img.data), {base64: true}));
-            const content = await zip.generateAsync({type: 'blob'});
+            zip.file('document.tex', preambleEditor.state.doc.toString() + mainEditor.state.doc.toString());
+            zip.file('refs.bib', bibEditor.state.doc.toString());
+            images.forEach(img => zip.file(img.name, atob(img.data), { base64: true }));
+            const content = await zip.generateAsync({ type: 'blob' });
             const url = URL.createObjectURL(content);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'project.zip';
+            a.download = 'latex_project.zip';
             a.click();
+            URL.revokeObjectURL(url);
         });
     }
 
-    // Version history
-    if (saveVersionButton && versionsList && editor) {
+    // Historial de versiones
+    if (saveVersionButton && versionsList) {
         saveVersionButton.addEventListener('click', () => {
-            versions.push(editor.innerHTML);
+            versions.push({
+                preamble: preambleEditor.state.doc.toString(),
+                main: mainEditor.state.doc.toString(),
+                bib: bibEditor.state.doc.toString()
+            });
             localStorage.setItem('versions', JSON.stringify(versions));
             renderVersions();
         });
@@ -351,51 +290,50 @@ document.addEventListener('DOMContentLoaded', () => {
         versionsList.innerHTML = '';
         versions.forEach((v, i) => {
             const btn = document.createElement('button');
-            btn.textContent = `Versión ${i+1}`;
-            btn.addEventListener('click', () => editor.innerHTML = v);
+            btn.textContent = `Versión ${i + 1}`;
+            btn.addEventListener('click', () => {
+                preambleEditor.dispatch({ changes: { from: 0, to: preambleEditor.state.doc.length, insert: v.preamble } });
+                mainEditor.dispatch({ changes: { from: 0, to: mainEditor.state.doc.length, insert: v.main } });
+                bibEditor.dispatch({ changes: { from: 0, to: bibEditor.state.doc.length, insert: v.bib } });
+                updateSidebar();
+            });
             versionsList.appendChild(btn);
         });
     }
 
-    // Analysis
-    if (analyzeButton && analysisOutput && editor) {
+    // Análisis de texto (repeticiones, consistencia)
+    if (analyzeButton && analysisOutput) {
         analyzeButton.addEventListener('click', () => {
-            const text = editor.innerText;
-            const words = text.split(/\s+/);
-            const wordFreq = {};
-            words.forEach(w => wordFreq[w] = (wordFreq[w] || 0) + 1);
-            const repetitions = Object.entries(wordFreq).filter(([w, c]) => c > 5 && w.length > 3).map(([w, c]) => `${w}: ${c}`).join(', ');
-            const sentences = text.split(/[.!?]/);
-            const longParas = sentences.filter(s => s.split(/\s+/).length > 20).length;
-            analysisOutput.innerHTML = `Repeticiones: ${repetitions || 'Ninguna'}<br>Párrafos largos: ${longParas}`;
-            // Add more analysis
+            const text = mainEditor.state.doc.toString().replace(/\\[a-zA-Z]+/g, '').replace(/[{}\[\]]/g, ''); // Quitar comandos LaTeX
+            const words = text.split(/\s+/).filter(w => w.length > 3);
+            const freq = {};
+            words.forEach(w => freq[w] = (freq[w] || 0) + 1);
+            const reps = Object.entries(freq).filter(([, c]) => c > 5).map(([w, c]) => `${w}: ${c}`).join(', ');
+            const longSent = text.split(/[.!?]/).filter(s => s.split(/\s+/).length > 30).length;
+            analysisOutput.innerHTML = `Repeticiones frecuentes: ${reps || 'Ninguna'}<br>Oraciones largas: ${longSent}`;
+            // Agregar más análisis como densidad (palabras únicas / total)
         });
     }
 
-    // Simple "AI" expand
-    if (expandButton && editor) {
+    // "IA" simple: expandir y reescribir (basado en reglas)
+    if (expandButton) {
         expandButton.addEventListener('click', () => {
-            const selection = window.getSelection();
-            if (selection.rangeCount) {
-                const range = selection.getRangeAt(0);
-                const text = range.toString();
-                const expanded = `In the academic context, ${text}. Furthermore, this implies that...`; // Simple rule
-                range.deleteContents();
-                range.insertNode(document.createTextNode(expanded));
+            const selected = mainEditor.state.selection.main;
+            const text = mainEditor.state.doc.sliceString(selected.from, selected.to);
+            if (text) {
+                const expanded = text + '\n% Expansión: Además, esto implica que... [agrega detalles académicos]';
+                mainEditor.dispatch({ changes: { from: selected.from, to: selected.to, insert: expanded } });
             }
         });
     }
 
-    // Simple rewrite
-    if (rewriteButton && editor) {
+    if (rewriteButton) {
         rewriteButton.addEventListener('click', () => {
-            const selection = window.getSelection();
-            if (selection.rangeCount) {
-                const range = selection.getRangeAt(0);
-                const text = range.toString();
-                const rewritten = `This paper introduces ${text.split('.')[0]}. The following sections explore...`; // Simple
-                range.deleteContents();
-                range.insertNode(document.createTextNode(rewritten));
+            const selected = mainEditor.state.selection.main;
+            const text = mainEditor.state.doc.sliceString(selected.from, selected.to);
+            if (text) {
+                const rewritten = `% Reescritura como intro: Este trabajo presenta ${text}. Las secciones siguientes exploran...`;
+                mainEditor.dispatch({ changes: { from: selected.from, to: selected.to, insert: rewritten } });
             }
         });
     }

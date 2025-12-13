@@ -4,27 +4,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Herramientas de Texto Académico Premium - Academic Tools</title>
-    <meta name="description" content="Constructor de proyectos LaTeX, editor enriquecido, gestión de referencias, revisión académica, compilación local. Todo ético y local.">
+    <title>Editor LaTeX Académico - Academic Tools</title>
+    <meta name="description" content="Editor LaTeX como Overleaf o VS Code, con compilación local, gestión de referencias BibTeX, sidebar de navegación, inserciones rápidas y análisis. Todo en navegador, sin servidores.">
+    <meta name="keywords" content="editor latex browser, compilador latex local, herramientas academic overleaf alternativo, gratis ético">
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+    <script type="importmap">
+        {
+            "imports": {
+                "@codemirror/basic-setup": "https://cdn.jsdelivr.net/npm/@codemirror/basic-setup@6/dist/index.min.js",
+                "@codemirror/state": "https://cdn.jsdelivr.net/npm/@codemirror/state@6/dist/index.min.js",
+                "@codemirror/view": "https://cdn.jsdelivr.net/npm/@codemirror/view@6/dist/index.min.js",
+                "@codemirror/autocomplete": "https://cdn.jsdelivr.net/npm/@codemirror/autocomplete@6/dist/index.min.js",
+                "codemirror-lang-latex": "https://cdn.jsdelivr.net/npm/codemirror-lang-latex@latest/dist/index.min.js",
+                "@citedrive/codemirror-lang-bibtex": "https://cdn.jsdelivr.net/npm/@citedrive/codemirror-lang-bibtex@latest/dist/index.min.js"
+            }
+        }
+    </script>
     <style>
         .dark { background: #1e1e1e; color: #fff; }
-        #editor { border: 1px solid #ccc; min-height: 400px; padding: 10px; }
-        .toolbar button { margin: 2px; }
-        .sidebar-item { cursor: pointer; padding-left: calc(10px * var(--level)); }
-        iframe { width: 100%; height: 600px; }
+        .editor-container { border: 1px solid #ccc; height: 400px; }
+        .sidebar { float: left; width: 200px; padding: 10px; border-right: 1px solid #ddd; }
+        .sidebar-item { cursor: pointer; margin-bottom: 5px; }
+        iframe { width: 100%; height: 500px; display: none; }
+        textarea { display: none; } /* Oculta textareas base para CodeMirror */
     </style>
 </head>
 <body>
     <header>
-        <img src="assets/logoP.png" alt="Logo">
-        <h1>Herramientas de Texto Académico Premium</h1>
-        <nav><!-- same --></nav>
+        <img src="assets/logoP.png" alt="Academic Tools Logo" class="logo">
+        <h1>Editor LaTeX Académico Gratuito</h1>
+        <nav>
+            <ul>
+                <li><a href="index.html">Inicio</a></li>
+                <li><a href="references.html">Referencias</a></li>
+                <li><a href="pdf-tools.html">PDFs</a></li>
+                <li><a href="math.html">Matemáticas</a></li>
+                <li><a href="review.html">Revisión</a></li>
+            </ul>
+        </nav>
     </header>
     <main>
         <section>
-            <h2>Constructor de Proyectos LaTeX</h2>
+            <h2>Selecciona Plantilla y Genera Proyecto</h2>
+            <p>Elige una plantilla académica y genera la estructura base.</p>
             <select id="template-select">
                 <option value="APA">APA</option>
                 <option value="Chicago">Chicago</option>
@@ -34,71 +56,69 @@
                 <option value="Tesis Chilena">Tesis Chilena</option>
             </select>
             <button id="generate-structure">Generar Estructura</button>
-            <textarea id="preamble" placeholder="Preamble LaTeX"></textarea>
         </section>
         <section>
-            <h2>Editor Enriquecido</h2>
-            <div class="toolbar">
-                <button id="bold-btn">Negrita</button>
-                <button id="italic-btn">Cursiva</button>
-                <button id="h1-btn">Título 1</button>
-                <button id="h2-btn">Título 2</button>
-                <button id="ul-btn">Lista</button>
-                <button id="ol-btn">Lista Num</button>
-                <button id="cite-btn">Cita</button>
-                <button id="math-btn">Fórmula</button>
-                <button id="figure-btn">Figura</button>
-                <button id="clean-text">Limpiar</button>
+            <h2>Editor de Preamble (Paquetes y Configuración)</h2>
+            <div id="preamble-editor" class="editor-container">
+                <textarea id="preamble-editor-textarea"></textarea>
             </div>
-            <div id="editor" contenteditable="true">Escribe aquí...</div>
-            <div id="text-count"></div>
-            <div id="sidebar" class="sidebar"></div>
         </section>
         <section>
-            <h2>Gestión de Referencias</h2>
-            <input id="doi-input" placeholder="DOI">
-            <button id="fetch-bib">Fetch BibTeX</button>
-            <input id="isbn-input" placeholder="ISBN">
-            <button id="fetch-isbn">Fetch ISBN</button>
-            <div id="bib-list"></div>
+            <h2>Editor Principal LaTeX (Cuerpo del Documento)</h2>
+            <div id="sidebar"></div>
+            <div id="main-editor" class="editor-container">
+                <textarea id="main-editor-textarea"></textarea>
+            </div>
         </section>
         <section>
-            <h2>Conversión y Compilación</h2>
-            <button id="convert-to-latex">Convertir a LaTeX</button>
-            <pre id="latex-output"></pre>
-            <button id="compile-pdf">Compilar PDF</button>
-            <iframe id="pdf-preview" style="display:none"></iframe>
+            <h2>Editor de Referencias BibTeX</h2>
+            <p>Añade entradas desde DOI o ISBN.</p>
+            <input type="text" id="doi-input" placeholder="Ingresa DOI (e.g., 10.1038/nature12345)">
+            <button id="fetch-bib">Añadir desde DOI</button>
+            <input type="text" id="isbn-input" placeholder="Ingresa ISBN (e.g., 978-3-16-148410-0)">
+            <button id="fetch-isbn">Añadir desde ISBN</button>
+            <div id="bib-editor" class="editor-container">
+                <textarea id="bib-editor-textarea"></textarea>
+            </div>
         </section>
         <section>
-            <h2>Exportación</h2>
-            <button id="export-tex">Exportar .tex</button>
-            <button id="export-zip">Exportar .zip</button>
+            <h2>Compilación y Vista Previa PDF</h2>
+            <p>Compila localmente y ve el PDF generado.</p>
+            <button id="compile-pdf">Compilar a PDF</button>
+            <iframe id="pdf-preview"></iframe>
+        </section>
+        <section>
+            <h2>Exportación del Proyecto</h2>
+            <button id="export-tex">Descargar .tex</button>
+            <button id="export-zip">Descargar Proyecto .zip</button>
         </section>
         <section>
             <h2>Historial de Versiones</h2>
-            <button id="save-version">Guardar Versión</button>
+            <p>Guarda y restaura versiones del proyecto.</p>
+            <button id="save-version">Guardar Versión Actual</button>
             <div id="versions-list"></div>
         </section>
         <section>
-            <h2>Revisión Académica</h2>
-            <button id="analyze-text">Analizar</button>
+            <h2>Revisión y Análisis Académico</h2>
+            <p>Analiza repeticiones, párrafos largos, etc.</p>
+            <button id="analyze-text">Analizar Documento</button>
             <div id="analysis-output"></div>
         </section>
         <section>
-            <h2>Funciones IA Locales</h2>
-            <button id="expand-paragraph">Expandir Párrafo</button>
-            <button id="rewrite-intro">Reescribir como Intro</button>
+            <h2>Herramientas de Escritura "IA" Simples</h2>
+            <p>Expande o reescribe selecciones (basado en reglas simples).</p>
+            <button id="expand-paragraph">Expandir Selección</button>
+            <button id="rewrite-intro">Reescribir como Introducción</button>
         </section>
-        <button id="dark-mode-toggle">Modo Oscuro</button>
+        <button id="dark-mode-toggle">Alternar Modo Oscuro</button>
     </main>
-    <footer><!-- same, add local processing --></footer>
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bibtex-parse-js@0.0.25/bibtex_parse.js"></script>
+    <footer>
+        <p>Academic Tools - Gratuito y ético. Compilación LaTeX 100% local en tu navegador. Nada sale de tu computador.</p>
+    </footer>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://manuels.github.io/texlive.js/dist/pdftex.js"></script>
-    <script src="app.js"></script>
-    <script src="tools/text.js"></script>
+    <script type="module" src="app.js"></script>
+    <script type="module" src="tools/text.js"></script>
 </body>
 </html>
