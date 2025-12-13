@@ -15,14 +15,15 @@
                 "@codemirror/state": "https://cdn.jsdelivr.net/npm/@codemirror/state@6/dist/index.min.js",
                 "@codemirror/view": "https://cdn.jsdelivr.net/npm/@codemirror/view@6/dist/index.min.js",
                 "@codemirror/autocomplete": "https://cdn.jsdelivr.net/npm/@codemirror/autocomplete@6/dist/index.min.js",
-                "codemirror-lang-latex": "https://cdn.jsdelivr.net/npm/codemirror-lang-latex@latest/dist/index.min.js",
-                "@citedrive/codemirror-lang-bibtex": "https://cdn.jsdelivr.net/npm/@citedrive/codemirror-lang-bibtex@latest/dist/index.min.js"
+                "codemirror-lang-latex": "https://unpkg.com/codemirror-lang-latex@0.2.0/dist/index.js",
+                "@citedrive/codemirror-lang-bibtex": "https://unpkg.com/@citedrive/codemirror-lang-bibtex@6.4.1/dist/index.js"
             }
         }
     </script>
     <style>
         .dark { background: #1e1e1e; color: #fff; }
         .editor-container { border: 1px solid #ccc; height: 400px; }
+        .editor-container .cm-editor { height: 100%; }
         .sidebar { float: left; width: 200px; padding: 10px; border-right: 1px solid #ddd; }
         .sidebar-item { cursor: pointer; margin-bottom: 5px; }
         iframe { width: 100%; height: 500px; display: none; }

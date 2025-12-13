@@ -1,4 +1,5 @@
 // tools/text.js
+// @ts-nocheck
 import { EditorView, basicSetup } from "@codemirror/basic-setup";
 import { EditorState } from "@codemirror/state";
 import { autocomplete } from "@codemirror/autocomplete";
