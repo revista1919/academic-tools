@@ -8,12 +8,12 @@ import { bibtex } from "@citedrive/codemirror-lang-bibtex";
 
 document.addEventListener('DOMContentLoaded', () => {
     const templates = {
-        'APA': `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{geometry}\n\\geometry{margin=1in}\n\\usepackage{setspace}\n\\doublespacing\n\\usepackage{natbib}\n\\bibpunct{(}{)}{;}{a}{,}{,}\n\\usepackage{graphicx}\n`,
-        'Chicago': `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{geometry}\n\\geometry{margin=1in}\n\\usepackage{chicago}\n\\usepackage{graphicx}\n`,
-        'IEEE': `\\documentclass[conference]{IEEEtran}\n\\usepackage[utf8]{inputenc}\n\\usepackage{cite}\n\\usepackage{graphicx}\n`,
-        'Springer': `\\documentclass{svjour3}\n\\usepackage[utf8]{inputenc}\n\\usepackage{natbib}\n\\usepackage{graphicx}\n`,
-        'Elsevier': `\\documentclass{elsarticle}\n\\usepackage[utf8]{inputenc}\n\\usepackage{natbib}\n\\usepackage{graphicx}\n`,
-        'Tesis Chilena': `\\documentclass{book}\n\\usepackage[spanish]{babel}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{geometry}\n\\geometry{a4paper, margin=2.5cm}\n\\usepackage{natbib}\n\\usepackage{graphicx}\n`,
+        'APA': `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{geometry}\n\\geometry{margin=1in}\n\\usepackage{setspace}\n\\doublespacing\n\\usepackage{natbib}\n\\bibpunct{(}{)}{;}{a}{,}{,}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{amsmath}\n\\usepackage{booktabs}\n\\usepackage{caption}\n\\usepackage{subcaption}\n`,
+        'Chicago': `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{geometry}\n\\geometry{margin=1in}\n\\usepackage{chicago}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{amsmath}\n\\usepackage{booktabs}\n\\usepackage{caption}\n\\usepackage{subcaption}\n`,
+        'IEEE': `\\documentclass[conference]{IEEEtran}\n\\usepackage[utf8]{inputenc}\n\\usepackage{cite}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{amsmath}\n\\usepackage{booktabs}\n\\usepackage{caption}\n\\usepackage{subcaption}\n`,
+        'Springer': `\\documentclass{svjour3}\n\\usepackage[utf8]{inputenc}\n\\usepackage{natbib}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{amsmath}\n\\usepackage{booktabs}\n\\usepackage{caption}\n\\usepackage{subcaption}\n`,
+        'Elsevier': `\\documentclass{elsarticle}\n\\usepackage[utf8]{inputenc}\n\\usepackage{natbib}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{amsmath}\n\\usepackage{booktabs}\n\\usepackage{caption}\n\\usepackage{subcaption}\n`,
+        'Tesis Chilena': `\\documentclass{book}\n\\usepackage[spanish]{babel}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{geometry}\n\\geometry{a4paper, margin=2.5cm}\n\\usepackage{natbib}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{amsmath}\n\\usepackage{booktabs}\n\\usepackage{caption}\n\\usepackage{subcaption}\n`,
         // Agrega más plantillas con paquetes comunes para cada estilo
     };
     // Elementos del DOM
@@ -45,6 +45,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const insertItalicBtn = document.getElementById('insert-italic');
     const insertItemizeBtn = document.getElementById('insert-itemize');
     const insertEnumerateBtn = document.getElementById('insert-enumerate');
+    const insertEquationBtn = document.getElementById('insert-equation');
+    const insertHyperlinkBtn = document.getElementById('insert-hyperlink');
+    const insertFootnoteBtn = document.getElementById('insert-footnote');
+    const insertSubsectionBtn = document.getElementById('insert-subsection');
+    const insertSubsubsectionBtn = document.getElementById('insert-subsubsection');
     const importZip = document.getElementById('import-zip');
     const importTex = document.getElementById('import-tex');
     const importBib = document.getElementById('import-bib');
@@ -122,14 +127,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Inserciones rápidas en main editor
     if (insertSectionBtn) insertSectionBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\section{}'));
+    if (insertSubsectionBtn) insertSubsectionBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\subsection{}'));
+    if (insertSubsubsectionBtn) insertSubsubsectionBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\subsubsection{}'));
     if (insertCiteBtn) insertCiteBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\cite{}'));
     if (insertMathBtn) insertMathBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\[\n\\]'));
+    if (insertEquationBtn) insertEquationBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\begin{equation}\n\\end{equation}'));
     if (insertFigureBtn) insertFigureBtn.addEventListener('click', () => insertFigure(mainEditor));
     if (insertTableBtn) insertTableBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\begin{table}[h]\n\\centering\n\\begin{tabular}{cc}\n a & b \\\\ \n c & d \\\\ \n\\end{tabular}\n\\caption{}\n\\label{}\n\\end{table}'));
     if (insertBoldBtn) insertBoldBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\textbf{}'));
     if (insertItalicBtn) insertItalicBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\textit{}'));
     if (insertItemizeBtn) insertItemizeBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\begin{itemize}\n\\item \n\\end{itemize}'));
     if (insertEnumerateBtn) insertEnumerateBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\begin{enumerate}\n\\item \n\\end{enumerate}'));
+    if (insertHyperlinkBtn) insertHyperlinkBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\href{}{}'));
+    if (insertFootnoteBtn) insertFootnoteBtn.addEventListener('click', () => insertAtCursor(mainEditor, '\\footnote{}'));
     function insertAtCursor(editorView, text) {
         const state = editorView.state;
         const transaction = state.update({ changes: { from: state.selection.main.head, insert: text } });
@@ -221,25 +231,27 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!file) return;
             try {
                 const zip = await JSZip.loadAsync(file);
-                const texFile = zip.file('document.tex');
+                const texFile = zip.file(/\.tex$/i) || zip.file('document.tex');
                 if (texFile) {
                     const text = await texFile.async('string');
                     const parts = text.split('\\begin{document}');
                     preambleEditor.dispatch({ changes: { from: 0, to: preambleEditor.state.doc.length, insert: parts[0] || '' } });
                     mainEditor.dispatch({ changes: { from: 0, to: mainEditor.state.doc.length, insert: (parts.length > 1 ? '\\begin{document}' + parts.slice(1).join('\\begin{document}') : text) } });
                 }
-                const bibFile = zip.file('refs.bib');
+                const bibFile = zip.file(/\.bib$/i) || zip.file('refs.bib');
                 if (bibFile) {
                     const bibText = await bibFile.async('string');
                     bibEditor.dispatch({ changes: { from: 0, to: bibEditor.state.doc.length, insert: bibText } });
                 }
+                images = [];
                 await zip.forEach(async (path, entry) => {
-                    if (!entry.dir && /\.(png|jpg|jpeg|gif)$/i.test(path)) {
+                    if (!entry.dir && /\.(png|jpg|jpeg|gif|svg|pdf|eps)$/i.test(path)) {
                         const base64 = await entry.async('base64');
                         images.push({ name: sanitizeFilename(path), data: base64 });
                     }
                 });
                 updateSidebar();
+                alert('Proyecto importado exitosamente.');
             } catch (e) {
                 alert('Error al importar .zip: ' + e.message);
             }
@@ -257,6 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 preambleEditor.dispatch({ changes: { from: 0, to: preambleEditor.state.doc.length, insert: parts[0] || '' } });
                 mainEditor.dispatch({ changes: { from: 0, to: mainEditor.state.doc.length, insert: (parts.length > 1 ? '\\begin{document}' + parts.slice(1).join('\\begin{document}') : text) } });
                 updateSidebar();
+                alert('Archivo .tex importado.');
             };
             reader.readAsText(file);
         });
@@ -270,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.onload = (r) => {
                 const text = r.target.result;
                 bibEditor.dispatch({ changes: { from: 0, to: bibEditor.state.doc.length, insert: text } });
+                alert('Archivo .bib importado.');
             };
             reader.readAsText(file);
         });

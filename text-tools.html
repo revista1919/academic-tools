@@ -11,19 +11,20 @@
     <script type="importmap">
         {
             "imports": {
-                "@codemirror/basic-setup": "https://cdn.jsdelivr.net/npm/@codemirror/basic-setup@6/dist/index.min.js",
-                "@codemirror/state": "https://cdn.jsdelivr.net/npm/@codemirror/state@6/dist/index.min.js",
-                "@codemirror/view": "https://cdn.jsdelivr.net/npm/@codemirror/view@6/dist/index.min.js",
-                "@codemirror/autocomplete": "https://cdn.jsdelivr.net/npm/@codemirror/autocomplete@6/dist/index.min.js",
+                "@codemirror/basic-setup": "https://cdn.jsdelivr.net/npm/@codemirror/basic-setup@6.0.1/dist/index.js",
+                "@codemirror/state": "https://cdn.jsdelivr.net/npm/@codemirror/state@6.4.1/dist/index.js",
+                "@codemirror/view": "https://cdn.jsdelivr.net/npm/@codemirror/view@6.28.5/dist/index.js",
+                "@codemirror/autocomplete": "https://cdn.jsdelivr.net/npm/@codemirror/autocomplete@6.18.1/dist/index.js",
                 "codemirror-lang-latex": "https://unpkg.com/codemirror-lang-latex@0.2.0/dist/index.js",
-                "@citedrive/codemirror-lang-bibtex": "https://unpkg.com/@citedrive/codemirror-lang-bibtex@6.4.1/dist/index.js"
+                "@citedrive/codemirror-lang-bibtex": "https://unpkg.com/@citedrive/codemirror-lang-bibtex@0.9.0/dist/index.js"
             }
         }
     </script>
     <style>
         .dark { background: #1e1e1e; color: #fff; }
         .editor-container { border: 1px solid #ccc; height: 400px; }
-        .editor-container .cm-editor { height: 100%; }
+        .editor-container .cm-editor { height: 100%; background-color: white; color: black; }
+        .dark .editor-container .cm-editor { background-color: #1e1e1e; color: #fff; }
         .sidebar { float: left; width: 200px; padding: 10px; border-right: 1px solid #ddd; }
         .sidebar-item { cursor: pointer; margin-bottom: 5px; }
         iframe { width: 100%; height: 500px; display: none; }
@@ -46,6 +47,16 @@
     </header>
     <main>
         <section>
+            <h2>Guía Rápida para Empezar</h2>
+            <p>1. Selecciona una plantilla y haz clic en "Generar Estructura" para crear un proyecto base.</p>
+            <p>2. Edita el preamble para agregar paquetes, el cuerpo principal para el contenido, y las referencias BibTeX.</p>
+            <p>3. Usa los botones de inserción para agregar elementos comunes rápidamente.</p>
+            <p>4. Importa imágenes al insertar figuras; se guardarán localmente.</p>
+            <p>5. Compila para ver el PDF preview.</p>
+            <p>6. Exporta como .tex o .zip completo.</p>
+            <p>7. Guarda versiones para restaurar cambios.</p>
+        </section>
+        <section>
             <h2>Selecciona Plantilla y Genera Proyecto</h2>
             <p>Elige una plantilla académica y genera la estructura base.</p>
             <select id="template-select">
@@ -60,7 +71,7 @@
         </section>
         <section>
             <h2>Importar Proyecto o Archivos</h2>
-            <p>Carga proyectos completos desde .zip o archivos individuales.</p>
+            <p>Carga proyectos completos desde .zip (incluye .tex, .bib e imágenes) o archivos individuales.</p>
             <label for="import-zip">Importar .zip:</label>
             <input type="file" id="import-zip" accept=".zip">
             <label for="import-tex">Importar .tex:</label>
@@ -80,14 +91,19 @@
         <section>
             <h2>Herramientas Simples para LaTeX</h2>
             <button id="insert-section">Insertar Sección</button>
+            <button id="insert-subsection">Insertar Subsección</button>
+            <button id="insert-subsubsection">Insertar Subsubsección</button>
             <button id="insert-cite">Insertar Cita</button>
-            <button id="insert-math">Insertar Matemáticas</button>
+            <button id="insert-math">Insertar Matemáticas Inline</button>
+            <button id="insert-equation">Insertar Ecuación</button>
             <button id="insert-figure">Insertar Figura</button>
             <button id="insert-table">Insertar Tabla</button>
             <button id="insert-bold">Negrita</button>
             <button id="insert-italic">Cursiva</button>
             <button id="insert-itemize">Lista con Puntos</button>
             <button id="insert-enumerate">Lista Numerada</button>
+            <button id="insert-hyperlink">Insertar Hipervínculo</button>
+            <button id="insert-footnote">Insertar Nota al Pie</button>
         </section>
         <section>
             <h2>Editor de Referencias BibTeX</h2>
@@ -130,7 +146,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://manuels.github.io/texlive.js/dist/texlive.js"></script>
-    <script type="module" src="app.js"></script>
     <script type="module" src="tools/text.js"></script>
 </body>
 </html>
