@@ -244,7 +244,6 @@ document.addEventListener('DOMContentLoaded', () => {
       node.appendChild(caption);
       node.contentEditable = false;
       node.addEventListener('dblclick', () => {
-        // Edit caption focus
         caption.focus();
       });
       return node;
@@ -329,7 +328,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   Quill.register(ProofBlot);
-  // Más blots para otros elementos originales como minipage, etc., pero para simplicidad, agregados principales
   function getCitationText(key) {
     const entry = bibEntries[key] || {author: 'Unknown', year: '????'};
     const authors = entry.author.split(' and ');
