@@ -461,12 +461,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // OCR Imagen a LaTeX (básico, usando Tesseract para texto, usuario edita)
+    // OCR Imagen a LaTeX (mejorado con previsualización y importación al editor)
     const ocrInput = document.getElementById('ocr-input');
     const ocrButton = document.getElementById('ocr-button');
     const ocrOutput = document.getElementById('ocr-output');
     const ocrPreview = document.getElementById('ocr-preview');
+    const ocrImagePreview = document.getElementById('ocr-image-preview');
     const copyOcr = document.getElementById('copy-ocr');
+    const importOcr = document.getElementById('import-ocr-to-editor');
+
+    if (ocrInput) {
+        ocrInput.addEventListener('change', () => {
+            const file = ocrInput.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                ocrImagePreview.src = url;
+                ocrImagePreview.style.display = 'block';
+            }
+        });
+    }
 
     if (ocrButton && ocrInput) {
         ocrButton.addEventListener('click', () => {
@@ -474,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!file) return;
             ocrOutput.textContent = 'Procesando...';
             const url = URL.createObjectURL(file);
-            Tesseract.recognize(url, 'eng', { logger: m => console.log(m) }).then(({ data: { text } }) => {
+            Tesseract.recognize(url, 'eng+math_equ_traineddata', { logger: m => console.log(m) }).then(({ data: { text } }) => {
                 ocrOutput.textContent = text.trim();
                 try {
                     katex.render(text, ocrPreview, { throwOnError: false });
@@ -493,30 +506,80 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Handwriting recognition: Dibujo en canvas, OCR
+    if (importOcr && mathField) {
+        importOcr.addEventListener('click', () => {
+            mathField.value = ocrOutput.textContent;
+            mathField.focus();
+            mathField.dispatchEvent(new Event('input'));
+        });
+    }
+
+    // Handwriting recognition: Dibujo en canvas mejorado con soporte táctil y herramientas básicas
     const drawCanvas = document.getElementById('draw-canvas');
     const clearDraw = document.getElementById('clear-draw');
     const ocrDrawButton = document.getElementById('ocr-draw');
     const drawOutput = document.getElementById('draw-output');
     const drawPreview = document.getElementById('draw-preview');
     const copyDraw = document.getElementById('copy-draw');
+    const importDraw = document.getElementById('import-draw-to-editor');
+    const drawColor = document.getElementById('draw-color');
+    const drawThickness = document.getElementById('draw-thickness');
     let drawing = false;
 
     if (drawCanvas) {
         const ctx = drawCanvas.getContext('2d');
         ctx.lineWidth = 2;
         ctx.strokeStyle = 'black';
+        ctx.lineCap = 'round';
 
-        drawCanvas.addEventListener('mousedown', () => drawing = true);
-        drawCanvas.addEventListener('mouseup', () => drawing = false);
-        drawCanvas.addEventListener('mousemove', (e) => {
-            if (drawing) {
-                ctx.lineTo(e.offsetX, e.offsetY);
-                ctx.stroke();
-            } else {
-                ctx.beginPath();
-                ctx.moveTo(e.offsetX, e.offsetY);
+        function startDrawing(e) {
+            drawing = true;
+            ctx.beginPath();
+            const {x, y} = getPosition(e);
+            ctx.moveTo(x, y);
+            e.preventDefault();
+        }
+
+        function draw(e) {
+            if (!drawing) return;
+            const {x, y} = getPosition(e);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            e.preventDefault();
+        }
+
+        function stopDrawing(e) {
+            drawing = false;
+            e.preventDefault();
+        }
+
+        function getPosition(e) {
+            const rect = drawCanvas.getBoundingClientRect();
+            if (e.touches) {
+                return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
             }
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+
+        drawCanvas.addEventListener('mousedown', startDrawing);
+        drawCanvas.addEventListener('mousemove', draw);
+        drawCanvas.addEventListener('mouseup', stopDrawing);
+        drawCanvas.addEventListener('mouseout', stopDrawing);
+
+        drawCanvas.addEventListener('touchstart', startDrawing);
+        drawCanvas.addEventListener('touchmove', draw);
+        drawCanvas.addEventListener('touchend', stopDrawing);
+    }
+
+    if (drawColor) {
+        drawColor.addEventListener('change', () => {
+            drawCanvas.getContext('2d').strokeStyle = drawColor.value;
+        });
+    }
+
+    if (drawThickness) {
+        drawThickness.addEventListener('change', () => {
+            drawCanvas.getContext('2d').lineWidth = drawThickness.value;
         });
     }
 
@@ -532,7 +595,7 @@ document.addEventListener('DOMContentLoaded', () => {
             drawOutput.textContent = 'Procesando...';
             drawCanvas.toBlob(blob => {
                 const url = URL.createObjectURL(blob);
-                Tesseract.recognize(url, 'eng').then(({ data: { text } }) => {
+                Tesseract.recognize(url, 'eng+math_equ_traineddata').then(({ data: { text } }) => {
                     drawOutput.textContent = text.trim();
                     try {
                         katex.render(text, drawPreview, { throwOnError: false });
@@ -549,6 +612,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (copyDraw) {
         copyDraw.addEventListener('click', () => {
             navigator.clipboard.writeText(drawOutput.textContent).then(() => alert('Texto dibujado copiado!'));
+        });
+    }
+
+    if (importDraw && mathField) {
+        importDraw.addEventListener('click', () => {
+            mathField.value = drawOutput.textContent;
+            mathField.focus();
+            mathField.dispatchEvent(new Event('input'));
         });
     }
 

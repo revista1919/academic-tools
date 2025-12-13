@@ -1,6 +1,7 @@
 // tools/text.js
 // @ts-nocheck
-import { EditorView, basicSetup } from "@codemirror/basic-setup";
+import { EditorView } from "@codemirror/view";
+import { basicSetup } from "@codemirror/basic-setup";
 import { EditorState } from "@codemirror/state";
 import { autocomplete } from "@codemirror/autocomplete";
 import { latex } from "codemirror-lang-latex";
@@ -75,19 +76,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Editor principal para LaTeX body
     if (mainEditorElem) {
+        const updateListener = EditorView.updateListener.of(update => {
+            if (update.docChanged) updateSidebar();
+        });
         const mainState = EditorState.create({
             doc: '\\begin{document}\nHola mundo\n\\end{document}',
             extensions: [
                 basicSetup,
                 autocomplete,
-                latex({ biblatex: false, smartSuggest: true, syntaxLinter: true })
+                latex({ biblatex: false, smartSuggest: true, syntaxLinter: true }),
+                updateListener
             ]
         });
         mainEditor = new EditorView({
             state: mainState,
             parent: mainEditorElem
         });
-        mainEditor.dom.addEventListener('change', updateSidebar); // Actualiza sidebar en cambios
     }
     // Editor para BibTeX
     if (bibEditorElem) {

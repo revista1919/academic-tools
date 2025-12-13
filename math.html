@@ -86,22 +86,27 @@
         </section>
         <section>
             <h2>OCR de Imagen a Fórmula</h2>
-            <p>Sube una imagen de ecuación impresa, extrae texto y intenta renderizar como LaTeX. (Precisión limitada para math complejo)</p>
+            <p>Sube una imagen de ecuación impresa, extrae texto y intenta renderizar como LaTeX. (Precisión limitada para math complejo, mejorado con previsualización e importación)</p>
             <input type="file" id="ocr-input" accept="image/*">
+            <img id="ocr-image-preview" style="display:none; max-width:400px;">
             <button id="ocr-button">Procesar OCR</button>
             <pre id="ocr-output"></pre>
             <div id="ocr-preview"></div>
             <button id="copy-ocr">Copiar Texto</button>
+            <button id="import-ocr-to-editor">Importar a Editor</button>
         </section>
         <section>
             <h2>Reconocimiento de Escritura a Mano</h2>
-            <p>Dibuja una ecuación con el cursor, procesa OCR para extraer texto y renderizar. (Mejor para impreso/simple)</p>
-            <canvas id="draw-canvas" width="400" height="200" style="border:1px solid black;"></canvas>
+            <p>Dibuja una ecuación con el cursor o toque, procesa OCR para extraer texto y renderizar. (Mejorado con soporte táctil, colores, grosor e importación)</p>
+            <label>Color: <input type="color" id="draw-color" value="#000000"></label>
+            <label>Grosor: <input type="range" id="draw-thickness" min="1" max="10" value="2"></label>
+            <canvas id="draw-canvas" width="400" height="200" style="border:1px solid black; touch-action: none;"></canvas>
             <button id="clear-draw">Limpiar</button>
             <button id="ocr-draw">Procesar OCR</button>
             <pre id="draw-output"></pre>
             <div id="draw-preview"></div>
             <button id="copy-draw">Copiar Texto</button>
+            <button id="import-draw-to-editor">Importar a Editor</button>
         </section>
         <section>
             <h2>Conversor de Unidades Científicas</h2>
