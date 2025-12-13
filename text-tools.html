@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editor LaTeX Académico - Academic Tools</title>
+    <meta name="description" content="Editor LaTeX como Overleaf o VS Code, con compilación local, gestión de referencias BibTeX, sidebar de navegación, inserciones rápidas y análisis. Todo en navegador, sin servidores.">
+    <meta name="keywords" content="editor latex browser, compilador latex local, herramientas academic overleaf alternativo, gratis ético">
     <link rel="stylesheet" href="styles.css">
-
     <!-- CSS de CodeMirror 5 (estable, sin CORB) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
-
     <style>
         body { font-family: system-ui, sans-serif; margin: 20px; background: #f9f9f9; }
         .dark { background: #1e1e1e; color: #fff; }
@@ -22,13 +22,13 @@
         }
         .dark .editor-container { border-color: #444; }
         .CodeMirror { height: 100%; font-size: 14px; }
-        .sidebar { 
-            width: 220px; 
-            float: left; 
-            background: #f0f0f0; 
-            padding: 15px; 
-            height: 450px; 
-            overflow-y: auto; 
+        .sidebar {
+            width: 220px;
+            float: left;
+            background: #f0f0f0;
+            padding: 15px;
+            height: 450px;
+            overflow-y: auto;
             border-right: 1px solid #ddd;
         }
         .dark .sidebar { background: #2d2d2d; }
@@ -37,58 +37,137 @@
         .dark .sidebar-item:hover { background: #444; }
         button, select, input { padding: 10px 15px; margin: 5px; }
         iframe { width: 100%; height: 600px; border: 1px solid #ccc; display: none; }
+        #compile-log { display: none; }
     </style>
 </head>
 <body>
-
-    <h1>Editor LaTeX Académico Gratuito</h1>
-    <button id="dark-mode-toggle">Alternar Modo Oscuro</button>
-
-    <select id="template-select">
-        <option value="APA">APA</option>
-        <option value="Chicago">Chicago</option>
-        <option value="IEEE">IEEE</option>
-        <option value="Springer">Springer</option>
-        <option value="Elsevier">Elsevier</option>
-        <option value="Tesis Chilena">Tesis Chilena</option>
-    </select>
-    <button id="generate-structure">Generar Estructura</button>
-
-    <hr style="clear:both;">
-
-    <h2>Preamble (Paquetes y Configuración)</h2>
-    <div id="preamble-editor" class="editor-container"></div>
-
-    <h2>Documento Principal</h2>
-    <div style="display: flex;">
-        <div id="sidebar" class="sidebar"><strong>Secciones</strong></div>
-        <div style="flex: 1;">
-            <div id="main-editor" class="editor-container"></div>
-        </div>
-    </div>
-
-    <h2>Referencias BibTeX</h2>
-    <div id="bib-editor" class="editor-container"></div>
-
-    <button id="compile-pdf">Compilar a PDF</button>
-    <iframe id="pdf-preview"></iframe>
-
+    <header>
+        <img src="assets/logoP.png" alt="Academic Tools Logo" class="logo">
+        <h1>Editor LaTeX Académico Gratuito</h1>
+        <nav>
+            <ul>
+                <li><a href="index.html">Inicio</a></li>
+                <li><a href="references.html">Referencias</a></li>
+                <li><a href="pdf-tools.html">PDFs</a></li>
+                <li><a href="math.html">Matemáticas</a></li>
+                <li><a href="review.html">Revisión</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section>
+            <h2>Guía Rápida para Empezar</h2>
+            <p>1. Selecciona una plantilla y haz clic en "Generar Estructura" para crear un proyecto base.</p>
+            <p>2. Edita el preamble para agregar paquetes, el cuerpo principal para el contenido, y las referencias BibTeX.</p>
+            <p>3. Usa los botones de inserción para agregar elementos comunes rápidamente.</p>
+            <p>4. Importa imágenes al insertar figuras; se guardarán localmente.</p>
+            <p>5. Compila para ver el PDF preview.</p>
+            <p>6. Exporta como .tex o .zip completo.</p>
+            <p>7. Guarda versiones para restaurar cambios.</p>
+        </section>
+        <section>
+            <h2>Selecciona Plantilla y Genera Proyecto</h2>
+            <p>Elige una plantilla académica y genera la estructura base.</p>
+            <select id="template-select">
+                <option value="APA">APA</option>
+                <option value="Chicago">Chicago</option>
+                <option value="IEEE">IEEE</option>
+                <option value="Springer">Springer</option>
+                <option value="Elsevier">Elsevier</option>
+                <option value="Tesis Chilena">Tesis Chilena</option>
+            </select>
+            <button id="generate-structure">Generar Estructura</button>
+        </section>
+        <section>
+            <h2>Importar Proyecto o Archivos</h2>
+            <p>Carga proyectos completos desde .zip (incluye .tex, .bib e imágenes) o archivos individuales.</p>
+            <label for="import-zip">Importar .zip:</label>
+            <input type="file" id="import-zip" accept=".zip">
+            <label for="import-tex">Importar .tex:</label>
+            <input type="file" id="import-tex" accept=".tex">
+            <label for="import-bib">Importar .bib:</label>
+            <input type="file" id="import-bib" accept=".bib">
+        </section>
+        <section>
+            <h2>Editor de Preamble (Paquetes y Configuración)</h2>
+            <div id="preamble-editor" class="editor-container"></div>
+        </section>
+        <section>
+            <h2>Editor Principal LaTeX (Cuerpo del Documento)</h2>
+            <div style="display: flex;">
+                <div id="sidebar" class="sidebar"><strong>Secciones</strong></div>
+                <div style="flex: 1;">
+                    <div id="main-editor" class="editor-container"></div>
+                </div>
+            </div>
+        </section>
+        <section>
+            <h2>Herramientas Simples para LaTeX</h2>
+            <button id="insert-section">Insertar Sección</button>
+            <button id="insert-subsection">Insertar Subsección</button>
+            <button id="insert-subsubsection">Insertar Subsubsección</button>
+            <button id="insert-cite">Insertar Cita</button>
+            <button id="insert-math">Insertar Matemáticas Inline</button>
+            <button id="insert-equation">Insertar Ecuación</button>
+            <button id="insert-figure">Insertar Figura</button>
+            <button id="insert-table">Insertar Tabla</button>
+            <button id="insert-bold">Negrita</button>
+            <button id="insert-italic">Cursiva</button>
+            <button id="insert-itemize">Lista con Puntos</button>
+            <button id="insert-enumerate">Lista Numerada</button>
+            <button id="insert-hyperlink">Insertar Hipervínculo</button>
+            <button id="insert-footnote">Insertar Nota al Pie</button>
+        </section>
+        <section>
+            <h2>Editor de Referencias BibTeX</h2>
+            <p>Añade entradas desde DOI o ISBN.</p>
+            <input type="text" id="doi-input" placeholder="Ingresa DOI (e.g., 10.1038/nature12345)">
+            <button id="fetch-bib">Añadir desde DOI</button>
+            <input type="text" id="isbn-input" placeholder="Ingresa ISBN (e.g., 978-3-16-148410-0)">
+            <button id="fetch-isbn">Añadir desde ISBN</button>
+            <div id="bib-editor" class="editor-container"></div>
+        </section>
+        <section>
+            <h2>Compilación y Vista Previa PDF</h2>
+            <p>Compila localmente y ve el PDF generado.</p>
+            <button id="compile-pdf">Compilar a PDF</button>
+            <iframe id="pdf-preview"></iframe>
+            <div id="compile-log"></div>
+        </section>
+        <section>
+            <h2>Exportación del Proyecto</h2>
+            <button id="export-tex">Descargar .tex</button>
+            <button id="export-zip">Descargar Proyecto .zip</button>
+        </section>
+        <section>
+            <h2>Historial de Versiones</h2>
+            <p>Guarda y restaura versiones del proyecto.</p>
+            <button id="save-version">Guardar Versión Actual</button>
+            <div id="versions-list"></div>
+        </section>
+        <section>
+            <h2>Revisión y Análisis Académico</h2>
+            <p>Analiza repeticiones, párrafos largos, etc.</p>
+            <button id="analyze-text">Analizar Documento</button>
+            <div id="analysis-output"></div>
+        </section>
+        <button id="dark-mode-toggle">Alternar Modo Oscuro</button>
+    </main>
+    <footer>
+        <p>Academic Tools - Gratuito y ético. Compilación LaTeX 100% local en tu navegador. Nada sale de tu computador.</p>
+    </footer>
     <!-- Librerías externas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://manuels.github.io/texlive.js/dist/texlive.js"></script>
-
     <!-- CodeMirror 5 core -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
-
     <!-- Modo LaTeX (stex) + dependencias -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/stex/stex.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
-
     <!-- Addons útiles -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
-
     <!-- Tu script (normal, sin type="module") -->
     <script src="tools/text.js"></script>
 </body>
