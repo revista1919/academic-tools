@@ -4,14 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editor LaTeX Académico - Academic Tools</title>
-    <meta name="description" content="Editor LaTeX WYSIWYG con edición visual de tablas, ecuaciones, texto enriquecido, sidebar de navegación, inserciones rápidas, atajos de teclado, y exportación a servicios online para compilación. Todo en navegador, sin servidores.">
+    <meta name="description" content="Editor LaTeX WYSIWYG como Word editable, con texto enriquecido, imágenes, tablas visuales, ecuaciones, citas bibliográficas visuales, sidebar de navegación, atajos de teclado, y exportación a ZIP estructurado LaTeX. Todo en navegador, sin servidores.">
     <meta name="keywords" content="editor latex wysiwyg browser, herramientas academic overleaf alternativo, gratis ético">
     <link rel="stylesheet" href="styles.css">
     <!-- CSS de CodeMirror 5 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
-    <!-- MathJax for equation preview -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js" async></script>
-    <!-- QuillJS for rich text -->
+    <!-- KaTeX for math rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <!-- QuillJS for WYSIWYG -->
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
     <style>
@@ -27,6 +28,8 @@
         }
         .dark .editor-container { border-color: #444; }
         .CodeMirror { height: 100%; font-size: 14px; }
+        .ql-editor { height: 100%; font-size: 14px; }
+        .dark-editor { background: #1e1e1e; color: #fff; }
         .sidebar {
             width: 220px;
             background: #f0f0f0;
@@ -57,13 +60,20 @@
         .compiler-card button { background: #007acc; color: #fff; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
         .compiler-card button:hover { background: #005f99; }
         .dark .compiler-card { background: #333; border-color: #555; color: #fff; }
-        #rich-text-editor { height: 300px; }
+        /* Custom Quill buttons */
+        .ql-equation { background: url('assets/equation-icon.png') no-repeat center; } /* Asume iconos */
+        .ql-table { background: url('assets/table-icon.png') no-repeat center; }
+        .ql-citation { background: url('assets/citation-icon.png') no-repeat center; }
+        /* Visual blots */
+        .equation { margin: 10px 0; text-align: center; border: 1px dashed #ccc; padding: 10px; }
+        table { margin: 10px 0; border: 1px solid #ccc; }
+        .citation { background: #e6f7ff; padding: 2px 4px; border-radius: 4px; }
     </style>
 </head>
 <body>
     <header>
         <img src="assets/logoP.png" alt="Academic Tools Logo" class="logo">
-        <h1>Editor LaTeX Académico Gratuito - Modo WYSIWYG</h1>
+        <h1>Editor LaTeX Académico Gratuito - Modo WYSIWYG como Word</h1>
         <nav>
             <ul>
                 <li><a href="index.html">Inicio</a></li>
@@ -78,10 +88,11 @@
         <section>
             <h2>Guía Rápida para Empezar</h2>
             <p>1. Selecciona una plantilla y genera la estructura base.</p>
-            <p>2. Edita visualmente tablas, ecuaciones y texto enriquecido con modales WYSIWYG.</p>
-            <p>3. Usa atajos de teclado (Ctrl-R para texto enriquecido, Ctrl-Q para ecuaciones, Ctrl-T para tablas).</p>
-            <p>4. Exporta a LaTeX o ZIP, y compila online en servicios como Overleaf o TeXPage.</p>
-            <p>5. Conteo de palabras en tiempo real, buscar/reemplazar, versiones y análisis.</p>
+            <p>2. Edita en modo visual WYSIWYG como Word: texto enriquecido, imágenes (arrastra o inserta), tablas y ecuaciones visuales editables.</p>
+            <p>3. Inserta citas bibliográficas visuales (aparecen como (Autor, Año)) desde DOI/ISBN o .bib.</p>
+            <p>4. Usa atajos de teclado (Ctrl-B negrita, Ctrl-S sección, Ctrl-Q ecuación, etc.).</p>
+            <p>5. Cambia a modo código para avanzado. Exporta a ZIP estructurado LaTeX (con carpeta images) o compila online.</p>
+            <p>6. Conteo de palabras en tiempo real, buscar/reemplazar, versiones, auto-guardado y análisis.</p>
         </section>
         <section>
             <h2>Selecciona Plantilla y Genera Proyecto</h2>
@@ -94,6 +105,7 @@
                 <option value="Tesis Chilena">Tesis Chilena</option>
             </select>
             <button id="generate-structure">Generar Estructura</button>
+            <button id="toggle-mode">Cambiar a Modo Código</button>
         </section>
         <section>
             <h2>Importar Proyecto o Archivos</h2>
@@ -109,88 +121,22 @@
             <div id="preamble-editor" class="editor-container"></div>
         </section>
         <section>
-            <h2>Editor Principal LaTeX (Cuerpo del Documento)</h2>
+            <h2>Editor Principal (Cuerpo del Documento - Modo Visual WYSIWYG)</h2>
             <div id="main-editor-container">
                 <div id="sidebar" class="sidebar"><strong>Secciones</strong></div>
                 <div style="flex: 1;">
+                    <div id="visual-editor" class="editor-container"></div>
                     <div id="main-editor" class="editor-container"></div>
                 </div>
             </div>
             <div id="word-count">Palabras: 0</div>
         </section>
         <section>
-            <h2>Herramientas Simples para LaTeX</h2>
-            <button id="insert-section">Sección</button>
-            <button id="insert-subsection">Subsección</button>
-            <button id="insert-subsubsection">Subsubsección</button>
-            <button id="insert-chapter">Capítulo</button>
-            <button id="insert-part">Parte</button>
-            <button id="insert-paragraph">Párrafo</button>
-            <button id="insert-subparagraph">Subpárrafo</button>
-            <button id="insert-cite">Cita</button>
-            <button id="insert-math">Matemáticas Inline</button>
-            <button id="insert-equation">Ecuación</button>
-            <button id="insert-align">Align</button>
-            <button id="insert-matrix">Matrix</button>
-            <button id="insert-pmatrix">Pmatrix</button>
-            <button id="insert-vector">Vector</button>
-            <button id="insert-hat">Hat</button>
-            <button id="insert-bar">Bar</button>
-            <button id="insert-dot">Dot</button>
-            <button id="insert-overline">Overline</button>
-            <button id="insert-underbrace">Underbrace</button>
-            <button id="insert-integral">Integral</button>
-            <button id="insert-sum">Sum</button>
-            <button id="insert-prod">Prod</button>
-            <button id="insert-lim">Lim</button>
-            <button id="insert-infty">Infinito</button>
-            <button id="insert-figure">Figura</button>
-            <button id="insert-visual-table">Tabla Visual</button>
-            <button id="insert-table">Tabla Simple</button>
-            <button id="insert-visual-equation">Ecuación Visual</button>
-            <button id="insert-rich-text">Texto Enriquecido Visual</button>
-            <button id="insert-bold">Negrita</button>
-            <button id="insert-italic">Cursiva</button>
-            <button id="insert-emph">Énfasis</button>
-            <button id="insert-texttt">Texto Mono</button>
-            <button id="insert-textsc">Small Caps</button>
-            <button id="insert-textsf">Sans Serif</button>
-            <button id="insert-textmd">Medium</button>
-            <button id="insert-textup">Upright</button>
-            <button id="insert-textsl">Slanted</button>
-            <button id="insert-itemize">Lista Puntos</button>
-            <button id="insert-enumerate">Lista Numerada</button>
-            <button id="insert-description">Descripción</button>
-            <button id="insert-hyperlink">Hipervínculo</button>
-            <button id="insert-footnote">Nota al Pie</button>
-            <button id="insert-abstract">Abstract</button>
-            <button id="insert-theorem">Teorema</button>
-            <button id="insert-lemma">Lema</button>
-            <button id="insert-proof">Prueba</button>
-            <button id="insert-verbatim">Verbatim</button>
-            <button id="insert-quote">Cita</button>
-            <button id="insert-center">Centro</button>
-            <button id="insert-flushleft">Flush Left</button>
-            <button id="insert-flushright">Flush Right</button>
-            <button id="insert-minipage">Minipage</button>
-            <button id="insert-framebox">Framebox</button>
-            <button id="insert-color">Color</button>
-            <button id="insert-pagebreak">Pagebreak</button>
-            <button id="insert-newpage">Newpage</button>
-            <button id="insert-label">Label</button>
-            <button id="insert-ref">Ref</button>
-            <button id="insert-pageref">Pageref</button>
-            <button id="insert-index">Index</button>
-            <button id="insert-glossary">Glossary</button>
-            <button id="insert-roman">Roman</button>
-            <button id="insert-Roman">ROMAN</button>
-            <button id="insert-alph">alph</button>
-            <button id="insert-Alph">Alph</button>
-            <button id="insert-arabic">Arabic</button>
-            <button id="find-replace-btn">Buscar/Reemplazar</button>
+            <h2>Herramientas Avanzadas (Usa toolbar arriba o atajos)</h2>
+            <button id="find-replace-btn">Buscar/Reemplazar (Ctrl-Find)</button>
         </section>
         <section>
-            <h2>Editor de Referencias BibTeX</h2>
+            <h2>Editor de Referencias BibTeX (Citas visuales en editor principal)</h2>
             <input type="text" id="doi-input" placeholder="Ingresa DOI">
             <button id="fetch-bib">Añadir desde DOI</button>
             <input type="text" id="isbn-input" placeholder="Ingresa ISBN">
@@ -199,7 +145,7 @@
         </section>
         <section>
             <h2>Compilación Online</h2>
-            <p>Exporta tu documento y compílalo en servicios online. Copia el LaTeX y pégalo en el editor del servicio.</p>
+            <p>Exporta tu documento y compílalo en servicios online. Copia el LaTeX generado y pégalo.</p>
             <div style="display: flex; flex-wrap: wrap; justify-content: center;">
                 <div class="compiler-card">
                     <h3>Overleaf</h3>
@@ -231,7 +177,7 @@
         <section>
             <h2>Exportación Local del Proyecto</h2>
             <button id="export-tex">Descargar .tex</button>
-            <button id="export-zip">Descargar Proyecto .zip</button>
+            <button id="export-zip">Descargar Proyecto .zip (Estructurado con images/)</button>
         </section>
         <section>
             <h2>Historial de Versiones</h2>
@@ -256,7 +202,7 @@
             <input type="number" id="table-cols" min="1" value="2">
             <button id="generate-table-grid">Generar Grid</button>
             <table id="table-grid"></table>
-            <button id="insert-table-code">Insertar Código LaTeX</button>
+            <button id="insert-table-code">Insertar Tabla Visual</button>
         </div>
     </div>
     <!-- Modal para ecuación visual -->
@@ -266,16 +212,16 @@
             <h2>Diseñador Visual de Ecuaciones</h2>
             <input type="text" id="equation-input" placeholder="Escribe LaTeX matemático aquí...">
             <div id="equation-preview"></div>
-            <button id="insert-equation-code">Insertar Código LaTeX</button>
+            <button id="insert-equation-code">Insertar Ecuación Visual</button>
         </div>
     </div>
-    <!-- Modal para texto enriquecido -->
-    <div id="rich-text-modal" class="modal">
+    <!-- Modal para cita -->
+    <div id="citation-modal" class="modal">
         <div class="modal-content">
-            <span id="close-rich-text-modal" class="close">&times;</span>
-            <h2>Editor Visual de Texto Enriquecido</h2>
-            <div id="rich-text-editor"></div>
-            <button id="insert-rich-text-code">Insertar Código LaTeX</button>
+            <span id="close-citation-modal" class="close">&times;</span>
+            <h2>Insertar Cita Bibliográfica</h2>
+            <select id="citation-select"></select>
+            <button id="insert-citation-code">Insertar Cita Visual</button>
         </div>
     </div>
     <!-- Modal para buscar/reemplazar -->
@@ -291,7 +237,7 @@
         </div>
     </div>
     <footer>
-        <p>Academic Tools - Gratuito y ético. Todo 100% local en tu navegador.</p>
+        <p>Academic Tools - Gratuito y ético. Todo 100% local en tu navegador con UX mejorada (auto-guardado, edición visual completa, citas interactivas).</p>
     </footer>
     <!-- Librerías externas -->
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>

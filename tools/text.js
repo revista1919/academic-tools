@@ -1,9 +1,7 @@
 // tools/text.js
-console.log("tools/text.js cargado correctamente (CodeMirror 5)");
-
+console.log("tools/text.js cargado correctamente (CodeMirror 5 con Quill WYSIWYG)");
 document.addEventListener('DOMContentLoaded', () => {
   console.log("tools/text.js - Inicio de DOMContentLoaded");
-
   const templates = {
     'APA': `\\documentclass{article}
 \\usepackage[utf8]{inputenc}
@@ -77,14 +75,13 @@ document.addEventListener('DOMContentLoaded', () => {
 \\usepackage{subcaption}
 `,
   };
-
   console.log("Templates cargados correctamente");
-
   // Elementos DOM
   const templateSelect = document.getElementById('template-select');
   const generateStructureButton = document.getElementById('generate-structure');
   const preambleEditorElem = document.getElementById('preamble-editor');
-  const mainEditorElem = document.getElementById('main-editor');
+  const mainEditorElem = document.getElementById('main-editor'); // Para modo código
+  const visualEditorElem = document.getElementById('visual-editor'); // Para modo visual WYSIWYG
   const bibEditorElem = document.getElementById('bib-editor');
   const sidebar = document.getElementById('sidebar');
   const doiInput = document.getElementById('doi-input');
@@ -98,8 +95,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const analyzeButton = document.getElementById('analyze-text');
   const analysisOutput = document.getElementById('analysis-output');
   const darkModeToggle = document.getElementById('dark-mode-toggle');
-  const insertFigureBtn = document.getElementById('insert-figure');
-  const insertVisualTableBtn = document.getElementById('insert-visual-table');
   const importZip = document.getElementById('import-zip');
   const importTex = document.getElementById('import-tex');
   const importBib = document.getElementById('import-bib');
@@ -110,7 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const tableGrid = document.getElementById('table-grid');
   const insertTableCodeBtn = document.getElementById('insert-table-code');
   const closeTableModalBtn = document.getElementById('close-table-modal');
-  const insertVisualEquationBtn = document.getElementById('insert-visual-equation');
   const equationModal = document.getElementById('equation-modal');
   const equationInput = document.getElementById('equation-input');
   const equationPreview = document.getElementById('equation-preview');
@@ -123,22 +117,97 @@ document.addEventListener('DOMContentLoaded', () => {
   const findReplaceModal = document.getElementById('find-replace-modal');
   const closeFindReplaceModalBtn = document.getElementById('close-find-replace-modal');
   const performFindReplaceBtn = document.getElementById('perform-find-replace');
-  const richTextEditorElem = document.getElementById('rich-text-editor');
-  const insertRichTextBtn = document.getElementById('insert-rich-text');
-  const richTextModal = document.getElementById('rich-text-modal');
-  const closeRichTextModalBtn = document.getElementById('close-rich-text-modal');
-  const insertRichTextCodeBtn = document.getElementById('insert-rich-text-code');
   const overleafExportBtn = document.getElementById('export-to-overleaf');
   const texpageExportBtn = document.getElementById('export-to-texpage');
   const papeeriaExportBtn = document.getElementById('export-to-papeeria');
   const cocalcExportBtn = document.getElementById('export-to-cocalc');
   const latexOnlineExportBtn = document.getElementById('export-to-latexonline');
-
+  const toggleModeBtn = document.getElementById('toggle-mode');
+  const citationModal = document.getElementById('citation-modal');
+  const citationSelect = document.getElementById('citation-select');
+  const insertCitationCodeBtn = document.getElementById('insert-citation-code');
+  const closeCitationModalBtn = document.getElementById('close-citation-modal');
   let preambleEditor, mainEditor, bibEditor, quill;
   let versions = JSON.parse(localStorage.getItem('versions')) || [];
   let images = [];
-
-  // CodeMirror options
+  let bibEntries = {};
+  let isVisualMode = true;
+  let currentEditIndex = null;
+  let currentEditType = null;
+  const Parchment = Quill.import('parchment');
+  const BlockEmbed = Quill.import('blots/block/embed');
+  const Inline = Quill.import('blots/inline');
+  class EquationBlot extends BlockEmbed {
+    static blotName = 'equation';
+    static tagName = 'div';
+    static className = 'equation';
+    static create(value) {
+      let node = super.create();
+      node.setAttribute('data-latex', value);
+      node.contentEditable = false;
+      katex.render(value, node, {throwOnError: false, displayMode: true});
+      node.addEventListener('dblclick', () => {
+        currentEditType = 'equation';
+        currentEditIndex = quill.getIndex(Parchment.find(node));
+        equationInput.value = value;
+        openVisualEquationModal();
+      });
+      return node;
+    }
+    static value(node) {
+      return node.getAttribute('data-latex');
+    }
+  }
+  Quill.register(EquationBlot);
+  class TableBlot extends BlockEmbed {
+    static blotName = 'table';
+    static tagName = 'table';
+    static create(value) {
+      let node = super.create();
+      node.innerHTML = value.html;
+      node.contentEditable = false;
+      node.addEventListener('dblclick', () => {
+        currentEditType = 'table';
+        currentEditIndex = quill.getIndex(Parchment.find(node));
+        openVisualTableModalWith(value.html);
+      });
+      return node;
+    }
+    static value(node) {
+      return {html: node.innerHTML};
+    }
+  }
+  Quill.register(TableBlot);
+  class CitationBlot extends Inline {
+    static blotName = 'citation';
+    static tagName = 'span';
+    static className = 'citation';
+    static create(value) {
+      let node = super.create();
+      node.setAttribute('data-key', value);
+      node.innerText = getCitationText(value);
+      node.contentEditable = false;
+      node.style.color = '#007acc';
+      node.style.cursor = 'pointer';
+      node.addEventListener('dblclick', () => {
+        currentEditType = 'citation';
+        currentEditIndex = quill.getIndex(Parchment.find(node));
+        openCitationModal(value); // Preselect
+      });
+      return node;
+    }
+    static formats(node) {
+      return node.getAttribute('data-key');
+    }
+  }
+  Quill.register(CitationBlot);
+  function getCitationText(key) {
+    const entry = bibEntries[key] || {author: 'Unknown', year: '????'};
+    const authors = entry.author.split(' and ');
+    const authorStr = authors[0] + (authors.length > 1 ? ' et al.' : '');
+    return `(${authorStr}, ${entry.year})`;
+  }
+  // Opciones para CodeMirror (para preamble, bib y modo código)
   const editorOptions = {
     lineNumbers: true,
     matchBrackets: true,
@@ -146,47 +215,8 @@ document.addEventListener('DOMContentLoaded', () => {
     indentUnit: 4,
     tabSize: 4,
     indentWithTabs: false,
-    mode: "stex",
-    extraKeys: {
-      "Ctrl-B": () => insertAtCursor(mainEditor, '\\textbf{}'),
-      "Ctrl-I": () => insertAtCursor(mainEditor, '\\textit{}'),
-      "Ctrl-U": () => insertAtCursor(mainEditor, '\\underline{}'),
-      "Ctrl-S": () => insertAtCursor(mainEditor, '\\section{}'),
-      "Ctrl-Shift-S": () => insertAtCursor(mainEditor, '\\subsection{}'),
-      "Ctrl-Alt-S": () => insertAtCursor(mainEditor, '\\subsubsection{}'),
-      "Ctrl-E": () => insertAtCursor(mainEditor, '\\begin{equation}\n\\end{equation}'),
-      "Ctrl-M": () => insertAtCursor(mainEditor, '\\[\n\\]'),
-      "Ctrl-L": () => insertAtCursor(mainEditor, '\\begin{itemize}\n\\item \n\\end{itemize}'),
-      "Ctrl-Shift-L": () => insertAtCursor(mainEditor, '\\begin{enumerate}\n\\item \n\\end{enumerate}'),
-      "Ctrl-T": () => openVisualTableModal(),
-      "Ctrl-F": () => insertFigure(mainEditor),
-      "Ctrl-C": () => insertAtCursor(mainEditor, '\\cite{}'),
-      "Ctrl-H": () => insertAtCursor(mainEditor, '\\href{}{}'),
-      "Ctrl-N": () => insertAtCursor(mainEditor, '\\footnote{}'),
-      "Ctrl-Alt-T": () => insertAtCursor(mainEditor, '\\begin{table}[h]\n\\centering\n\\begin{tabular}{cc}\n a & b \\\\ \n c & d \\\\ \n\\end{tabular}\n\\caption{}\n\\label{}\n\\end{table}'),
-      "Ctrl-Alt-F": () => insertAtCursor(mainEditor, '\\begin{figure}[h]\n\\centering\n\\includegraphics[width=0.8\\textwidth]{}\n\\caption{}\n\\label{}\n\\end{figure}'),
-      "Ctrl-Alt-E": () => insertAtCursor(mainEditor, '\\begin{align}\n\\end{align}'),
-      "Ctrl-Alt-M": () => insertAtCursor(mainEditor, '\\begin{bmatrix}\n\\end{bmatrix}'),
-      "Ctrl-Alt-P": () => insertAtCursor(mainEditor, '\\begin{pmatrix}\n\\end{pmatrix}'),
-      "Ctrl-Alt-V": () => insertAtCursor(mainEditor, '\\vec{}'),
-      "Ctrl-Alt-H": () => insertAtCursor(mainEditor, '\\hat{}'),
-      "Ctrl-Alt-B": () => insertAtCursor(mainEditor, '\\bar{}'),
-      "Ctrl-Alt-D": () => insertAtCursor(mainEditor, '\\dot{}'),
-      "Ctrl-Alt-O": () => insertAtCursor(mainEditor, '\\overline{}'),
-      "Ctrl-Alt-U": () => insertAtCursor(mainEditor, '\\underbrace{}{}'),
-      "Ctrl-Alt-I": () => insertAtCursor(mainEditor, '\\int'),
-      "Ctrl-Alt-Sum": () => insertAtCursor(mainEditor, '\\sum'),
-      "Ctrl-Alt-Prod": () => insertAtCursor(mainEditor, '\\prod'),
-      "Ctrl-Alt-Lim": () => insertAtCursor(mainEditor, '\\lim'),
-      "Ctrl-Alt-Inf": () => insertAtCursor(mainEditor, '\\infty'),
-      "Ctrl-Q": () => openVisualEquationModal(),
-      "Ctrl-R": () => openRichTextModal(),
-      "Ctrl-Z": "undo",
-      "Ctrl-Y": "redo",
-      "Ctrl-Find": () => openFindReplaceModal()
-    }
+    mode: "stex"
   };
-
   if (preambleEditorElem) {
     preambleEditor = CodeMirror(preambleEditorElem, {
       value: '\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{graphicx}\n',
@@ -194,201 +224,131 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     console.log("Preamble editor creado");
   }
-
   if (mainEditorElem) {
     mainEditor = CodeMirror(mainEditorElem, {
-      value: '\\begin{document}\nHola mundo\n\\end{document}',
+      value: 'Hola mundo',
       ...editorOptions
     });
+    mainEditorElem.style.display = 'none'; // Comenzar en modo visual
     mainEditor.on("change", () => {
-      updateSidebar();
-      updateWordCount();
+      if (!isVisualMode) {
+        updateSidebar();
+        updateWordCount();
+      }
     });
-    console.log("Main editor creado");
+    console.log("Main code editor creado");
   }
-
   if (bibEditorElem) {
     bibEditor = CodeMirror(bibEditorElem, {
       value: '',
-      lineNumbers: true,
-      matchBrackets: true,
-      mode: "stex"
+      ...editorOptions
     });
+    bibEditor.on('change', parseBib);
     console.log("Bib editor creado");
   }
-
-  // Inicializar Quill para editor de texto enriquecido
-  if (richTextEditorElem) {
-    quill = new Quill(richTextEditorElem, {
+  // Inicializar Quill para editor visual principal (como Word)
+  if (visualEditorElem) {
+    quill = new Quill(visualEditorElem, {
       theme: 'snow',
       modules: {
         toolbar: [
-          ['bold', 'italic', 'underline', 'strike'],
-          ['blockquote', 'code-block'],
-          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-          [{ 'script': 'sub'}, { 'script': 'super' }],
-          [{ 'indent': '-1'}, { 'indent': '+1' }],
-          [{ 'direction': 'rtl' }],
-          [{ 'size': ['small', false, 'large', 'huge'] }],
           [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+          ['bold', 'italic', 'underline', 'strike'],
           [{ 'color': [] }, { 'background': [] }],
           [{ 'font': [] }],
           [{ 'align': [] }],
-          ['clean']
-        ]
+          ['link', 'image', 'code-block'],
+          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+          [{ 'indent': '-1'}, { 'indent': '+1' }],
+          [{ 'script': 'sub'}, { 'script': 'super' }],
+          ['blockquote', 'clean'],
+          ['equation', 'table', 'citation'] // Custom buttons
+        ],
+        keyboard: {
+          bindings: {
+            bold: { key: 'B', ctrl: true, handler: range => quill.format('bold', true) },
+            italic: { key: 'I', ctrl: true, handler: range => quill.format('italic', true) },
+            underline: { key: 'U', ctrl: true, handler: range => quill.format('underline', true) },
+            section: { key: 'S', ctrl: true, handler: range => quill.format('header', 1) },
+            subsection: { key: 'S', shift: true, ctrl: true, handler: range => quill.format('header', 2) },
+            subsubsection: { key: 'S', alt: true, ctrl: true, handler: range => quill.format('header', 3) },
+            equation: { key: 'E', ctrl: true, handler: openVisualEquationModal.bind(null, '') },
+            math_inline: { key: 'M', ctrl: true, handler: openVisualEquationModal.bind(null, '') },
+            itemize: { key: 'L', ctrl: true, handler: range => quill.format('list', 'bullet') },
+            enumerate: { key: 'L', shift: true, ctrl: true, handler: range => quill.format('list', 'ordered') },
+            table: { key: 'T', ctrl: true, handler: openVisualTableModal },
+            cite: { key: 'C', ctrl: true, handler: openCitationModal },
+            hyperlink: { key: 'H', ctrl: true, handler: range => quill.format('link', prompt('URL:')) },
+            footnote: { key: 'N', ctrl: true, handler: range => insertFootnote() },
+            align: { key: 'Alt-E', ctrl: true, handler: openVisualEquationModal.bind(null, '\\begin{align}\\end{align}') },
+            bmatrix: { key: 'Alt-M', ctrl: true, handler: openVisualEquationModal.bind(null, '\\begin{bmatrix}\\end{bmatrix}') },
+            pmatrix: { key: 'Alt-P', ctrl: true, handler: openVisualEquationModal.bind(null, '\\begin{pmatrix}\\end{pmatrix}') },
+            vec: { key: 'Alt-V', ctrl: true, handler: openVisualEquationModal.bind(null, '\\vec{}') },
+            hat: { key: 'Alt-H', ctrl: true, handler: openVisualEquationModal.bind(null, '\\hat{}') },
+            bar: { key: 'Alt-B', ctrl: true, handler: openVisualEquationModal.bind(null, '\\bar{}') },
+            dot: { key: 'Alt-D', ctrl: true, handler: openVisualEquationModal.bind(null, '\\dot{}') },
+            overline: { key: 'Alt-O', ctrl: true, handler: openVisualEquationModal.bind(null, '\\overline{}') },
+            underbrace: { key: 'Alt-U', ctrl: true, handler: openVisualEquationModal.bind(null, '\\underbrace{}{}') },
+            integral: { key: 'Alt-I', ctrl: true, handler: openVisualEquationModal.bind(null, '\\int') },
+            sum: { key: 'Alt-Sum', ctrl: true, handler: openVisualEquationModal.bind(null, '\\sum') },
+            prod: { key: 'Alt-Prod', ctrl: true, handler: openVisualEquationModal.bind(null, '\\prod') },
+            lim: { key: 'Alt-Lim', ctrl: true, handler: openVisualEquationModal.bind(null, '\\lim') },
+            infty: { key: 'Alt-Inf', ctrl: true, handler: openVisualEquationModal.bind(null, '\\infty') },
+            find: { key: 'Find', ctrl: true, handler: openFindReplaceModal },
+            undo: { key: 'Z', ctrl: true, handler: () => quill.history.undo() },
+            redo: { key: 'Y', ctrl: true, handler: () => quill.history.redo() }
+          }
+        }
       }
     });
-  }
-
-  function updateSidebar() {
-    if (!sidebar || !mainEditor) return;
-    sidebar.innerHTML = '<strong>Secciones:</strong><br>';
-    const lines = mainEditor.getValue().split("\n");
-    let count = 0;
-    lines.forEach((line, i) => {
-      const match = line.match(/\\(chapter|section|subsection|subsubsection){([^{}]+)}/);
-      if (match) {
-        const level = { chapter: 0, section: 1, subsection: 2, subsubsection: 3 }[match[1]];
-        const title = match[2];
-        const item = document.createElement('div');
-        item.textContent = title;
-        item.classList.add('sidebar-item');
-        item.style.paddingLeft = `${level * 15}px`;
-        item.onclick = () => {
-          mainEditor.scrollIntoView({ line: i, ch: 0 });
-          mainEditor.focus();
-        };
-        sidebar.appendChild(item);
-        count++;
+    const toolbar = quill.getModule('toolbar');
+    toolbar.addHandler('equation', () => openVisualEquationModal(''));
+    toolbar.addHandler('table', openVisualTableModal);
+    toolbar.addHandler('citation', openCitationModal);
+    toolbar.addHandler('image', insertImage);
+    quill.on('text-change', () => {
+      if (isVisualMode) {
+        updateSidebar();
+        updateWordCount();
       }
+      autoSave();
     });
-    console.log("Sidebar actualizada con", count, "items");
+    console.log("Visual editor (Quill) creado");
   }
-
-  function updateWordCount() {
-    if (!wordCountElem || !mainEditor) return;
-    const text = mainEditor.getValue().replace(/\\[^ ]+/g, '').replace(/\s+/g, ' ').trim();
-    const wordCount = text.split(' ').length;
-    wordCountElem.textContent = `Palabras: ${wordCount}`;
+  // Auto-guardado cada 60 segundos
+  function autoSave() {
+    const project = {
+      preamble: preambleEditor.getValue(),
+      body: isVisualMode ? quill.getContents() : mainEditor.getValue(),
+      bib: bibEditor.getValue(),
+      images,
+      isVisualMode
+    };
+    localStorage.setItem('currentProject', JSON.stringify(project));
   }
-
-  // Modo oscuro
-  if (darkModeToggle) {
-    darkModeToggle.addEventListener('click', () => {
-      document.body.classList.toggle('dark');
-      localStorage.setItem('darkMode', document.body.classList.contains('dark'));
-      [preambleEditor, mainEditor, bibEditor].forEach(ed => ed ? ed.refresh() : null);
-      console.log("Modo oscuro toggled");
-    });
-    if (localStorage.getItem('darkMode') === 'true') {
-      document.body.classList.add('dark');
+  setInterval(autoSave, 60000);
+  // Cargar auto-guardado si existe
+  const savedProject = JSON.parse(localStorage.getItem('currentProject'));
+  if (savedProject) {
+    preambleEditor.setValue(savedProject.preamble || '');
+    bibEditor.setValue(savedProject.bib || '');
+    images = savedProject.images || [];
+    isVisualMode = savedProject.isVisualMode !== false;
+    if (isVisualMode) {
+      quill.setContents(savedProject.body || []);
+      visualEditorElem.style.display = 'block';
+      mainEditorElem.style.display = 'none';
+    } else {
+      mainEditor.setValue(savedProject.body || '');
+      visualEditorElem.style.display = 'none';
+      mainEditorElem.style.display = 'block';
     }
+    toggleModeBtn.textContent = isVisualMode ? 'Cambiar a Modo Código' : 'Cambiar a Modo Visual';
+    parseBib();
+    updateSidebar();
+    updateWordCount();
   }
-
-  // Generar estructura
-  if (generateStructureButton && templateSelect) {
-    generateStructureButton.addEventListener('click', () => {
-      const template = templateSelect.value;
-      preambleEditor.setValue(templates[template] || templates['APA']);
-      mainEditor.setValue('\\begin{document}\n\\maketitle\n\n\\section{Introducci\\\'on}\nEscribe aqu\\\'i...\n\n\\section{Metodolog\\\'ia}\n...\n\n\\section{Conclusiones}\n...\n\n\\bibliographystyle{plainnat}\n\\bibliography{refs}\n\\end{document}');
-      bibEditor.setValue('');
-      updateSidebar();
-      updateWordCount();
-      console.log("Estructura generada con template:", template);
-    });
-  }
-
-  // Inserciones rápidas
-  const insertButtons = {
-    'insert-section': '\\section{}',
-    'insert-subsection': '\\subsection{}',
-    'insert-subsubsection': '\\subsubsection{}',
-    'insert-cite': '\\cite{}',
-    'insert-math': '\\[\n\\]',
-    'insert-equation': '\\begin{equation}\n\\end{equation}',
-    'insert-table': '\\begin{table}[h]\n\\centering\n\\begin{tabular}{cc}\n a & b \\\\ \n c & d \\\\ \n\\end{tabular}\n\\caption{}\n\\label{}\n\\end{table}',
-    'insert-bold': '\\textbf{}',
-    'insert-italic': '\\textit{}',
-    'insert-itemize': '\\begin{itemize}\n\\item \n\\end{itemize}',
-    'insert-enumerate': '\\begin{enumerate}\n\\item \n\\end{enumerate}',
-    'insert-hyperlink': '\\href{}{}',
-    'insert-footnote': '\\footnote{}',
-    'insert-align': '\\begin{align}\n\\end{align}',
-    'insert-matrix': '\\begin{bmatrix}\n\\end{bmatrix}',
-    'insert-pmatrix': '\\begin{pmatrix}\n\\end{pmatrix}',
-    'insert-vector': '\\vec{}',
-    'insert-hat': '\\hat{}',
-    'insert-bar': '\\bar{}',
-    'insert-dot': '\\dot{}',
-    'insert-overline': '\\overline{}',
-    'insert-underbrace': '\\underbrace{}{}',
-    'insert-integral': '\\int',
-    'insert-sum': '\\sum',
-    'insert-prod': '\\prod',
-    'insert-lim': '\\lim',
-    'insert-infty': '\\infty',
-    'insert-abstract': '\\begin{abstract}\n\\end{abstract}',
-    'insert-theorem': '\\begin{theorem}\n\\end{theorem}',
-    'insert-lemma': '\\begin{lemma}\n\\end{lemma}',
-    'insert-proof': '\\begin{proof}\n\\end{proof}',
-    'insert-description': '\\begin{description}\n\\item[] \n\\end{description}',
-    'insert-verbatim': '\\begin{verbatim}\n\\end{verbatim}',
-    'insert-quote': '\\begin{quote}\n\\end{quote}',
-    'insert-center': '\\begin{center}\n\\end{center}',
-    'insert-flushleft': '\\begin{flushleft}\n\\end{flushleft}',
-    'insert-flushright': '\\begin{flushright}\n\\end{flushright}',
-    'insert-minipage': '\\begin{minipage}{0.5\\textwidth}\n\\end{minipage}',
-    'insert-framebox': '\\fbox{}',
-    'insert-color': '\\textcolor{}{}',
-    'insert-pagebreak': '\\pagebreak',
-    'insert-newpage': '\\newpage',
-    'insert-chapter': '\\chapter{}',
-    'insert-part': '\\part{}',
-    'insert-paragraph': '\\paragraph{}',
-    'insert-subparagraph': '\\subparagraph{}',
-    'insert-label': '\\label{}',
-    'insert-ref': '\\ref{}',
-    'insert-pageref': '\\pageref{}',
-    'insert-index': '\\index{}',
-    'insert-glossary': '\\glossary{}',
-    'insert-emph': '\\emph{}',
-    'insert-texttt': '\\texttt{}',
-    'insert-textsc': '\\textsc{}',
-    'insert-textsf': '\\textsf{}',
-    'insert-textmd': '\\textmd{}',
-    'insert-textup': '\\textup{}',
-    'insert-textsl': '\\textsl{}',
-    'insert-roman': '\\roman{}',
-    'insert-Roman': '\\Roman{}',
-    'insert-alph': '\\alph{}',
-    'insert-Alph': '\\Alph{}',
-    'insert-arabic': '\\arabic{}'
-  };
-
-  Object.keys(insertButtons).forEach(id => {
-    const btn = document.getElementById(id);
-    if (btn) btn.addEventListener('click', () => insertAtCursor(mainEditor, insertButtons[id]));
-  });
-
-  if (insertFigureBtn) insertFigureBtn.addEventListener('click', () => insertFigure(mainEditor));
-
-  if (insertVisualTableBtn) insertVisualTableBtn.addEventListener('click', openVisualTableModal);
-
-  if (insertVisualEquationBtn) insertVisualEquationBtn.addEventListener('click', openVisualEquationModal);
-
-  if (findReplaceBtn) findReplaceBtn.addEventListener('click', openFindReplaceModal);
-
-  if (insertRichTextBtn) insertRichTextBtn.addEventListener('click', openRichTextModal);
-
-  function insertAtCursor(editor, text) {
-    if (!editor) return;
-    const cursor = editor.getCursor();
-    editor.replaceRange(text, cursor);
-    editor.focus();
-    console.log("Insertado:", text);
-  }
-
-  function insertFigure(editor) {
+  function insertImage() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -397,26 +357,176 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = (r) => {
-        const name = sanitizeFilename(file.name);
-        images.push({ name, data: r.target.result.split(',')[1] });
-        insertAtCursor(editor, `\\begin{figure}[h]\n\\centering\n\\includegraphics[width=0.8\\textwidth]{${name}}\n\\caption{}\n\\label{}\n\\end{figure}`);
-        console.log("Imagen insertada:", name);
+        const range = quill.getSelection() || {index: quill.getLength()};
+        quill.insertEmbed(range.index, 'image', r.target.result);
+        quill.setSelection(range.index + 1);
       };
       reader.readAsDataURL(file);
     };
     input.click();
   }
-
-  function sanitizeFilename(name) {
-    return name.replace(/[^a-zA-Z0-9.-]/g, '_');
+  function insertFootnote() {
+    // Para footnotes, insertar como superscript número, pero simple text por ahora
+    const range = quill.getSelection();
+    const num = quill.getLength(); // Simple counter
+    quill.insertText(range.index, `${num}`, {script: 'super'});
   }
-
+  function parseBib() {
+    const text = bibEditor.getValue();
+    bibEntries = {};
+    const entryRegex = /@[\w]+\s*{\s*([^,]+),\s*([\s\S]*?)\s*}/g;
+    let match;
+    while ((match = entryRegex.exec(text)) !== null) {
+      const key = match[1].trim();
+      const fields = match[2];
+      const authorMatch = fields.match(/author\s*=\s*{(.*?)}/);
+      const yearMatch = fields.match(/year\s*=\s*{(.*?)}/);
+      bibEntries[key] = {
+        author: authorMatch ? authorMatch[1] : 'Unknown',
+        year: yearMatch ? yearMatch[1] : '????'
+      };
+    }
+  }
+  function updateSidebar() {
+    if (!sidebar) return;
+    sidebar.innerHTML = '<strong>Secciones:</strong><br>';
+    let count = 0;
+    if (isVisualMode) {
+      const headings = quill.root.querySelectorAll('h1, h2, h3, h4, h5, h6');
+      headings.forEach(el => {
+        const level = parseInt(el.tagName[1]);
+        const title = el.innerText;
+        const item = document.createElement('div');
+        item.textContent = title;
+        item.classList.add('sidebar-item');
+        item.style.paddingLeft = `${(level - 1) * 15}px`;
+        item.onclick = () => {
+          const blot = Parchment.find(el);
+          const index = quill.getIndex(blot);
+          quill.setSelection(index, 0);
+          quill.focus();
+        };
+        sidebar.appendChild(item);
+        count++;
+      });
+    } else {
+      const lines = mainEditor.getValue().split("\n");
+      lines.forEach((line, i) => {
+        const match = line.match(/\\(chapter|section|subsection|subsubsection){([^{}]+)}/);
+        if (match) {
+          const level = { chapter: 0, section: 1, subsection: 2, subsubsection: 3 }[match[1]];
+          const title = match[2];
+          const item = document.createElement('div');
+          item.textContent = title;
+          item.classList.add('sidebar-item');
+          item.style.paddingLeft = `${level * 15}px`;
+          item.onclick = () => {
+            mainEditor.scrollIntoView({ line: i, ch: 0 });
+            mainEditor.focus();
+          };
+          sidebar.appendChild(item);
+          count++;
+        }
+      });
+    }
+    console.log("Sidebar actualizada con", count, "items");
+  }
+  function updateWordCount() {
+    if (!wordCountElem) return;
+    let text;
+    if (isVisualMode) {
+      text = quill.getText().replace(/\s+/g, ' ').trim();
+    } else {
+      text = mainEditor.getValue().replace(/\\[^ ]+/g, '').replace(/\s+/g, ' ').trim();
+    }
+    const wordCount = text.split(' ').length;
+    wordCountElem.textContent = `Palabras: ${wordCount}`;
+  }
+  // Modo oscuro
+  if (darkModeToggle) {
+    darkModeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+      localStorage.setItem('darkMode', document.body.classList.contains('dark'));
+      [preambleEditor, mainEditor, bibEditor].forEach(ed => ed ? ed.refresh() : null);
+      // Para Quill
+      if (quill) {
+        quill.root.classList.toggle('dark-editor');
+      }
+      console.log("Modo oscuro toggled");
+    });
+    if (localStorage.getItem('darkMode') === 'true') {
+      document.body.classList.add('dark');
+      if (quill) quill.root.classList.add('dark-editor');
+    }
+  }
+  // Toggle modo visual/código
+  if (toggleModeBtn) {
+    toggleModeBtn.addEventListener('click', () => {
+      isVisualMode = !isVisualMode;
+      if (isVisualMode) {
+        visualEditorElem.style.display = 'block';
+        mainEditorElem.style.display = 'none';
+        quill.setContents(latexToDelta(mainEditor.getValue()));
+        toggleModeBtn.textContent = 'Cambiar a Modo Código';
+      } else {
+        visualEditorElem.style.display = 'none';
+        mainEditorElem.style.display = 'block';
+        mainEditor.setValue(deltaToLatex(quill.getContents()));
+        mainEditor.refresh();
+        toggleModeBtn.textContent = 'Cambiar a Modo Visual';
+      }
+      updateSidebar();
+      updateWordCount();
+    });
+  }
+  // Generar estructura
+  if (generateStructureButton && templateSelect) {
+    generateStructureButton.addEventListener('click', () => {
+      const template = templateSelect.value;
+      preambleEditor.setValue(templates[template] || templates['APA']);
+      if (isVisualMode) {
+        quill.setContents([
+          {insert: 'Introducción\n', attributes: {header: 1}},
+          {insert: 'Escribe aquí...\n\n'},
+          {insert: 'Metodología\n', attributes: {header: 1}},
+          {insert: '...\n\n'},
+          {insert: 'Conclusiones\n', attributes: {header: 1}},
+          {insert: '...\n'}
+        ]);
+      } else {
+        mainEditor.setValue('\\maketitle\n\n\\section{Introducci\\\'on}\nEscribe aqu\\\'i...\n\n\\section{Metodolog\\\'ia}\n...\n\n\\section{Conclusiones}\n...');
+      }
+      bibEditor.setValue('');
+      updateSidebar();
+      updateWordCount();
+      console.log("Estructura generada con template:", template);
+    });
+  }
   // Visual Table Designer
   function openVisualTableModal() {
     if (tableModal) tableModal.style.display = 'block';
     tableGrid.innerHTML = '';
+    tableRowsInput.value = 2;
+    tableColsInput.value = 2;
   }
-
+  function openVisualTableModalWith(html) {
+    const table = new DOMParser().parseFromString(`<table>${html}</table>`, 'text/html').querySelector('table');
+    tableRowsInput.value = table.rows.length;
+    tableColsInput.value = table.rows[0] ? table.rows[0].cells.length : 2;
+    tableGrid.innerHTML = '';
+    for (let i = 0; i < table.rows.length; i++) {
+      const row = document.createElement('tr');
+      for (let j = 0; j < table.rows[i].cells.length; j++) {
+        const cell = document.createElement('td');
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = table.rows[i].cells[j].innerText;
+        cell.appendChild(input);
+        row.appendChild(cell);
+      }
+      tableGrid.appendChild(row);
+    }
+  }
   if (generateTableGridBtn) {
     generateTableGridBtn.addEventListener('click', () => {
       const rows = parseInt(tableRowsInput.value) || 2;
@@ -430,132 +540,145 @@ document.addEventListener('DOMContentLoaded', () => {
           input.type = 'text';
           input.placeholder = `Celda ${i+1},${j+1}`;
           cell.appendChild(input);
-          row.appendChild(cell);
+          row.appendChild(row);
         }
         tableGrid.appendChild(row);
       }
     });
   }
-
   if (insertTableCodeBtn) {
     insertTableCodeBtn.addEventListener('click', () => {
       const rows = tableGrid.querySelectorAll('tr');
-      let tableCode = '\\begin{table}[h]\n\\centering\n\\begin{tabular}{';
-      const cols = rows[0] ? rows[0].children.length : 0;
-      tableCode += 'c'.repeat(cols) + '}\n';
+      let html = '<tbody>';
       rows.forEach(row => {
-        const cells = Array.from(row.querySelectorAll('input')).map(input => input.value || '');
-        tableCode += cells.join(' & ') + ' \\\\ \n';
+        html += '<tr>';
+        const inputs = row.querySelectorAll('input');
+        inputs.forEach(input => {
+          html += `<td>${input.value || ''}</td>`;
+        });
+        html += '</tr>';
       });
-      tableCode += '\\end{tabular}\n\\caption{}\n\\label{}\n\\end{table}';
-      insertAtCursor(mainEditor, tableCode);
+      html += '</tbody>';
+      const range = quill.getSelection() || {index: quill.getLength()};
+      if (currentEditType === 'table') {
+        quill.deleteText(currentEditIndex, 1);
+        quill.insertEmbed(currentEditIndex, 'table', {html});
+        quill.setSelection(currentEditIndex + 1);
+        currentEditType = null;
+        currentEditIndex = null;
+      } else {
+        quill.insertEmbed(range.index, 'table', {html});
+        quill.setSelection(range.index + 1);
+      }
       closeTableModal();
     });
   }
-
   if (closeTableModalBtn) {
     closeTableModalBtn.addEventListener('click', closeTableModal);
   }
-
   function closeTableModal() {
     if (tableModal) tableModal.style.display = 'none';
     tableGrid.innerHTML = '';
     tableRowsInput.value = '';
     tableColsInput.value = '';
   }
-
   // Visual Equation Designer
-  function openVisualEquationModal() {
+  function openVisualEquationModal(defaultLatex = '') {
     if (equationModal) equationModal.style.display = 'block';
+    equationInput.value = defaultLatex;
     equationPreview.innerHTML = '';
   }
-
   if (equationInput) {
     equationInput.addEventListener('input', () => {
       const math = equationInput.value;
-      equationPreview.innerHTML = `$$${math}$$`;
-      MathJax.typesetPromise([equationPreview]);
+      if (math) {
+        equationPreview.innerHTML = '';
+        katex.render(math, equationPreview, {throwOnError: false, displayMode: true});
+      }
     });
   }
-
   if (insertEquationCodeBtn) {
     insertEquationCodeBtn.addEventListener('click', () => {
       const math = equationInput.value;
       if (math) {
-        insertAtCursor(mainEditor, `\\begin{equation}\n${math}\n\\end{equation}`);
+        const range = quill.getSelection() || {index: quill.getLength()};
+        if (currentEditType === 'equation') {
+          quill.deleteText(currentEditIndex, 1);
+          quill.insertEmbed(currentEditIndex, 'equation', math);
+          quill.setSelection(currentEditIndex + 1);
+          currentEditType = null;
+          currentEditIndex = null;
+        } else {
+          quill.insertEmbed(range.index, 'equation', math);
+          quill.setSelection(range.index + 1);
+        }
       }
       closeEquationModal();
     });
   }
-
   if (closeEquationModalBtn) {
     closeEquationModalBtn.addEventListener('click', closeEquationModal);
   }
-
   function closeEquationModal() {
     if (equationModal) equationModal.style.display = 'none';
     equationInput.value = '';
     equationPreview.innerHTML = '';
   }
-
-  // Rich Text Modal
-  function openRichTextModal() {
-    if (richTextModal) richTextModal.style.display = 'block';
-    quill.setContents([]); // Limpiar contenido
-  }
-
-  if (insertRichTextCodeBtn) {
-    insertRichTextCodeBtn.addEventListener('click', () => {
-      const delta = quill.getContents();
-      const latexText = deltaToLatex(delta);
-      insertAtCursor(mainEditor, latexText);
-      closeRichTextModal();
+  // Citation Modal
+  function openCitationModal(preselect = '') {
+    if (citationModal) citationModal.style.display = 'block';
+    citationSelect.innerHTML = '';
+    Object.keys(bibEntries).forEach(key => {
+      const option = document.createElement('option');
+      option.value = key;
+      option.textContent = `${key}: ${getCitationText(key)}`;
+      if (key === preselect) option.selected = true;
+      citationSelect.appendChild(option);
     });
   }
-
-  function deltaToLatex(delta) {
-    let latex = '';
-    delta.ops.forEach(op => {
-      if (op.insert) {
-        let text = op.insert;
-        if (op.attributes) {
-          if (op.attributes.bold) text = `\\textbf{${text}}`;
-          if (op.attributes.italic) text = `\\textit{${text}}`;
-          if (op.attributes.underline) text = `\\underline{${text}}`;
-          // Agregar más mapeos según sea necesario: listas, etc.
-          if (op.attributes.list === 'bullet') {
-            latex += '\\begin{itemize}\n\\item ' + text + '\n\\end{itemize}\n';
-            return;
-          }
-          if (op.attributes.list === 'ordered') {
-            latex += '\\begin{enumerate}\n\\item ' + text + '\n\\end{enumerate}\n';
-            return;
-          }
+  if (insertCitationCodeBtn) {
+    insertCitationCodeBtn.addEventListener('click', () => {
+      const key = citationSelect.value;
+      if (key) {
+        const range = quill.getSelection() || {index: quill.getLength()};
+        if (currentEditType === 'citation') {
+          quill.deleteText(currentEditIndex, 1);
+          quill.insertText(currentEditIndex, '\uFEFF', 'citation', key);
+          quill.setSelection(currentEditIndex + 1);
+          currentEditType = null;
+          currentEditIndex = null;
+        } else {
+          quill.insertText(range.index, '\uFEFF', 'citation', key);
+          quill.setSelection(range.index + 1);
         }
-        latex += text;
       }
+      closeCitationModal();
     });
-    return latex;
   }
-
-  if (closeRichTextModalBtn) {
-    closeRichTextModalBtn.addEventListener('click', closeRichTextModal);
+  if (closeCitationModalBtn) {
+    closeCitationModalBtn.addEventListener('click', closeCitationModal);
   }
-
-  function closeRichTextModal() {
-    if (richTextModal) richTextModal.style.display = 'none';
+  function closeCitationModal() {
+    if (citationModal) citationModal.style.display = 'none';
   }
-
-  // Find and Replace
+  // Find and Replace (simple, pierde formatos en replace)
   function openFindReplaceModal() {
     if (findReplaceModal) findReplaceModal.style.display = 'block';
   }
-
   if (performFindReplaceBtn) {
     performFindReplaceBtn.addEventListener('click', () => {
       const find = findInput.value;
       const replace = replaceInput.value;
-      if (find && mainEditor) {
+      if (find && isVisualMode) {
+        let index = 0;
+        let text = quill.getText();
+        while ((index = text.indexOf(find, index)) !== -1) {
+          quill.deleteText(index, find.length);
+          quill.insertText(index, replace);
+          index += replace.length;
+          text = quill.getText();
+        }
+      } else if (find && !isVisualMode) {
         let text = mainEditor.getValue();
         text = text.replace(new RegExp(find, 'g'), replace);
         mainEditor.setValue(text);
@@ -563,17 +686,14 @@ document.addEventListener('DOMContentLoaded', () => {
       closeFindReplaceModal();
     });
   }
-
   if (closeFindReplaceModalBtn) {
     closeFindReplaceModalBtn.addEventListener('click', closeFindReplaceModal);
   }
-
   function closeFindReplaceModal() {
     if (findReplaceModal) findReplaceModal.style.display = 'none';
     findInput.value = '';
     replaceInput.value = '';
   }
-
   // Fetch BibTeX desde DOI
   if (fetchBibButton && doiInput) {
     fetchBibButton.addEventListener('click', async () => {
@@ -585,13 +705,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const bibtext = await response.text();
         const currentBib = bibEditor.getValue();
         bibEditor.setValue(currentBib + (currentBib ? '\n' : '') + bibtext);
+        parseBib();
       } catch (e) {
         console.error('Error fetching BibTeX:', e);
         alert('Error al obtener BibTeX: ' + e.message);
       }
     });
   }
-
   // Fetch desde ISBN
   if (fetchIsbnButton && isbnInput) {
     fetchIsbnButton.addEventListener('click', async () => {
@@ -605,16 +725,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const author = data.authors ? data.authors.map(a => a.name).join(' and ') : 'Unknown';
         const publisher = data.publishers ? data.publishers[0] : 'Unknown';
         const key = (author.split(' ')[0] + year).toLowerCase();
-        const bib = `@book{${key},\n  author = {${author}},\n  title = {${data.title}},\n  year = {${year}},\n  publisher = {${publisher}},\n}\n`;
+        const bib = `@book{${key},\n author = {${author}},\n title = {${data.title}},\n year = {${year}},\n publisher = {${publisher}},\n}\n`;
         const currentBib = bibEditor.getValue();
         bibEditor.setValue(currentBib + (currentBib ? '\n' : '') + bib);
+        parseBib();
       } catch (e) {
         console.error('Error fetching ISBN:', e);
         alert('Error al obtener ISBN: ' + e.message);
       }
     });
   }
-
   // Importar .zip
   if (importZip) {
     importZip.addEventListener('change', async (e) => {
@@ -629,7 +749,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const parts = texFileContent.split('\\begin{document}');
         preambleEditor.setValue(parts[0] || '');
-        mainEditor.setValue(parts.length > 1 ? '\\begin{document}' + parts.slice(1).join('\\begin{document}') : texFileContent);
+        const bodyLatex = parts.length > 1 ? parts[1] : texFileContent;
+        if (isVisualMode) {
+          quill.setContents(latexToDelta(bodyLatex));
+        } else {
+          mainEditor.setValue(bodyLatex);
+        }
         const bibFiles = Object.keys(zip.files).filter(path => path.toLowerCase().endsWith('.bib'));
         let bibFileContent = '';
         if (bibFiles.length > 0) {
@@ -641,10 +766,14 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const path in zip.files) {
           const entry = zip.files[path];
           if (!entry.dir && /\.(png|jpg|jpeg|gif|svg|pdf|eps)$/i.test(path)) {
-            promises.push(entry.async('base64').then(base64 => images.push({ name: sanitizeFilename(path), data: base64 })));
+            promises.push(entry.async('base64').then(base64 => {
+              const dataurl = `data:image/${path.split('.').pop()};base64,${base64}`;
+              images.push({name: sanitizeFilename(path), data: base64, dataurl});
+            }));
           }
         }
         await Promise.all(promises);
+        parseBib();
         updateSidebar();
         updateWordCount();
         alert('Proyecto importado exitosamente.');
@@ -654,7 +783,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-
   // Importar .tex
   if (importTex) {
     importTex.addEventListener('change', (e) => {
@@ -665,7 +793,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = r.target.result;
         const parts = text.split('\\begin{document}');
         preambleEditor.setValue(parts[0] || '');
-        mainEditor.setValue(parts.length > 1 ? '\\begin{document}' + parts.slice(1).join('\\begin{document}') : text);
+        const bodyLatex = parts.length > 1 ? parts[1] : text;
+        if (isVisualMode) {
+          quill.setContents(latexToDelta(bodyLatex));
+        } else {
+          mainEditor.setValue(bodyLatex);
+        }
         updateSidebar();
         updateWordCount();
         alert('Archivo .tex importado.');
@@ -673,7 +806,6 @@ document.addEventListener('DOMContentLoaded', () => {
       reader.readAsText(file);
     });
   }
-
   // Importar .bib
   if (importBib) {
     importBib.addEventListener('change', (e) => {
@@ -683,20 +815,21 @@ document.addEventListener('DOMContentLoaded', () => {
       reader.onload = (r) => {
         const text = r.target.result;
         bibEditor.setValue(text);
+        parseBib();
         alert('Archivo .bib importado.');
       };
       reader.readAsText(file);
     });
   }
-
   // Guardar versión
   if (saveVersionButton) {
     saveVersionButton.addEventListener('click', () => {
       const version = {
         preamble: preambleEditor.getValue(),
-        main: mainEditor.getValue(),
+        body: isVisualMode ? quill.getContents() : mainEditor.getValue(),
         bib: bibEditor.getValue(),
         images: images.map(img => ({ name: img.name, data: img.data })),
+        isVisualMode,
         timestamp: new Date().toISOString()
       };
       versions.push(version);
@@ -704,7 +837,6 @@ document.addEventListener('DOMContentLoaded', () => {
       updateVersionsList();
     });
   }
-
   function updateVersionsList() {
     if (!versionsList) return;
     versionsList.innerHTML = '';
@@ -713,22 +845,203 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.textContent = `Versión ${i+1} - ${v.timestamp}`;
       btn.onclick = () => {
         preambleEditor.setValue(v.preamble);
-        mainEditor.setValue(v.main);
         bibEditor.setValue(v.bib);
         images = v.images;
+        if (v.isVisualMode) {
+          quill.setContents(v.body);
+          visualEditorElem.style.display = 'block';
+          mainEditorElem.style.display = 'none';
+          isVisualMode = true;
+          toggleModeBtn.textContent = 'Cambiar a Modo Código';
+        } else {
+          mainEditor.setValue(v.body);
+          visualEditorElem.style.display = 'none';
+          mainEditorElem.style.display = 'block';
+          isVisualMode = false;
+          toggleModeBtn.textContent = 'Cambiar a Modo Visual';
+        }
+        parseBib();
         updateSidebar();
         updateWordCount();
       };
       versionsList.appendChild(btn);
     });
   }
-
   updateVersionsList();
-
+  // Función para convertir Delta a LaTeX
+  function deltaToLatex(delta) {
+    let latex = '';
+    let listType = null;
+    let listItems = [];
+    let quote = false;
+    let code = false;
+    images = []; // Recolectar imágenes durante export
+    function flushList() {
+      if (listItems.length) {
+        latex += '\\begin{' + listType + '}\n' + listItems.map(item => '\\item ' + item).join('\n') + '\n\\end{' + listType + '}\n';
+        listItems = [];
+        listType = null;
+      }
+    }
+    delta.ops.forEach((op, idx) => {
+      if (op.insert) {
+        if (typeof op.insert === 'string') {
+          let text = op.insert.replace(/\n/g, '\\\\\n');
+          if (op.attributes) {
+            if (op.attributes.citation) {
+              text = '\\cite{' + op.attributes.citation + '}';
+            }
+            if (op.attributes.bold) text = '\\textbf{' + text + '}';
+            if (op.attributes.italic) text = '\\textit{' + text + '}';
+            if (op.attributes.underline) text = '\\underline{' + text + '}';
+            if (op.attributes.strike) text = '\\sout{' + text + '}'; // need soul package
+            if (op.attributes.link) text = '\\href{' + op.attributes.link + '}{' + text + '}';
+            if (op.attributes.code) text = '\\texttt{' + text + '}';
+            if (op.attributes.script === 'super') text = '^{' + text + '}';
+            if (op.attributes.script === 'sub') text = '_{' + text + '}';
+            if (op.attributes.header) {
+              flushList();
+              const level = op.attributes.header;
+              const tag = level === 1 ? 'section' : level === 2 ? 'subsection' : level === 3 ? 'subsubsection' : 'paragraph';
+              text = '\\' + tag + '{' + text.trim() + '}\n';
+            }
+            if (op.attributes.blockquote) {
+              if (!quote) {
+                flushList();
+                latex += '\\begin{quote}\n';
+                quote = true;
+              }
+              text = text;
+              if (delta.ops[idx + 1] && !delta.ops[idx + 1].attributes?.blockquote) {
+                latex += text + '\\end{quote}\n';
+                quote = false;
+              } else {
+                latex += text;
+                return;
+              }
+            } else if (quote) {
+              latex += '\\end{quote}\n';
+              quote = false;
+            }
+            if (op.attributes['code-block']) {
+              if (!code) {
+                flushList();
+                latex += '\\begin{verbatim}\n';
+                code = true;
+              }
+              text = text;
+              if (delta.ops[idx + 1] && !delta.ops[idx + 1].attributes?.['code-block']) {
+                latex += text + '\\end{verbatim}\n';
+                code = false;
+              } else {
+                latex += text;
+                return;
+              }
+            } else if (code) {
+              latex += '\\end{verbatim}\n';
+              code = false;
+            }
+            if (op.attributes.list) {
+              const type = op.attributes.list === 'ordered' ? 'enumerate' : 'itemize';
+              if (type !== listType) {
+                flushList();
+                listType = type;
+              }
+              listItems.push(text.trim());
+              return;
+            } else {
+              flushList();
+            }
+          } else {
+            flushList();
+          }
+          latex += text;
+        } else if (op.insert.image) {
+          flushList();
+          const dataurl = op.insert.image;
+          if (dataurl.startsWith('data:')) {
+            const base64 = dataurl.split(',')[1];
+            const mime = dataurl.match(/:(.*?);/)[1];
+            const ext = mime.split('/')[1];
+            const name = `image${images.length}.${ext}`;
+            images.push({name, data: base64});
+            latex += '\\begin{figure}[h]\n\\centering\n\\includegraphics[width=0.8\\textwidth]{images/' + name + '}\n\\caption{}\n\\label{}\n\\end{figure}\n';
+          } else {
+            latex += '\\includegraphics{' + dataurl + '}';
+          }
+        } else if (op.insert.equation) {
+          flushList();
+          latex += '\\begin{equation}\n' + op.insert.equation + '\n\\end{equation}\n';
+        } else if (op.insert.table) {
+          flushList();
+          const table = new DOMParser().parseFromString(`<table>${op.insert.table.html}</table>`, 'text/html').querySelector('table');
+          const cols = table.rows[0].cells.length;
+          latex += '\\begin{table}[h]\n\\centering\n\\begin{tabular}{' + 'c'.repeat(cols) + '}\n';
+          for (let i = 0; i < table.rows.length; i++) {
+            const cells = Array.from(table.rows[i].cells).map(cell => cell.innerText);
+            latex += cells.join(' & ') + ' \\\\ \n';
+          }
+          latex += '\\end{tabular}\n\\caption{}\n\\label{}\n\\end{table}\n';
+        }
+      }
+    });
+    flushList();
+    if (quote) latex += '\\end{quote}\n';
+    if (code) latex += '\\end{verbatim}\n';
+    return latex;
+  }
+  // Función simple para convertir LaTeX a Delta (básico, no perfecto)
+  function latexToDelta(latex) {
+    const delta = new Quill.Delta();
+    latex = latex.replace(/\\begin{document}|\\end{document}/g, '');
+    const lines = latex.split('\n');
+    lines.forEach(line => {
+      line = line.trim();
+      if (!line) {
+        delta.insert('\n');
+        return;
+      }
+      if (line.startsWith('\\section{')) {
+        const title = line.match(/\\section{(.*)}/)[1];
+        delta.insert(title + '\n', {header: 1});
+      } else if (line.startsWith('\\subsection{')) {
+        const title = line.match(/\\subsection{(.*)}/)[1];
+        delta.insert(title + '\n', {header: 2});
+      } else if (line.startsWith('\\subsubsection{')) {
+        const title = line.match(/\\subsubsection{(.*)}/)[1];
+        delta.insert(title + '\n', {header: 3});
+      } else if (line.startsWith('\\textbf{')) {
+        const text = line.match(/\\textbf{(.*)}/)[1];
+        delta.insert(text, {bold: true});
+      } else if (line.startsWith('\\textit{')) {
+        const text = line.match(/\\textit{(.*)}/)[1];
+        delta.insert(text, {italic: true});
+      } else if (line.startsWith('\\underline{')) {
+        const text = line.match(/\\underline{(.*)}/)[1];
+        delta.insert(text, {underline: true});
+      } else if (line.startsWith('\\cite{')) {
+        const key = line.match(/\\cite{(.*)}/)[1];
+        delta.insert('\uFEFF', {citation: key});
+      } else if (line.startsWith('\\begin{equation}')) {
+        const math = lines.splice(lines.indexOf(line) + 1, lines.indexOf('\\end{equation}') - lines.indexOf(line) - 1).join('\n');
+        delta.insert({equation: math});
+      } else if (line.startsWith('\\begin{table}')) {
+        // Simple skip for now, or parse tabular
+        delta.insert(line + '\n');
+      } else {
+        delta.insert(line + '\n');
+      }
+    });
+    return delta;
+  }
+  function sanitizeFilename(name) {
+    return name.replace(/[^a-zA-Z0-9.-]/g, '_');
+  }
   // Export .tex
   if (exportTexButton) {
     exportTexButton.addEventListener('click', () => {
-      const fullTex = preambleEditor.getValue() + '\n\\begin{document}\n' + mainEditor.getValue() + '\n\\end{document}';
+      const body = isVisualMode ? deltaToLatex(quill.getContents()) : mainEditor.getValue();
+      const fullTex = preambleEditor.getValue() + '\n\\begin{document}\n' + body + '\n\\bibliographystyle{plainnat}\n\\bibliography{refs}\n\\end{document}';
       const blob = new Blob([fullTex], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -737,16 +1050,17 @@ document.addEventListener('DOMContentLoaded', () => {
       a.click();
     });
   }
-
-  // Export .zip
+  // Export .zip estructurado
   if (exportZipButton) {
     exportZipButton.addEventListener('click', async () => {
       const zip = new JSZip();
-      const fullTex = preambleEditor.getValue() + '\n\\begin{document}\n' + mainEditor.getValue() + '\n\\end{document}';
+      const body = isVisualMode ? deltaToLatex(quill.getContents()) : mainEditor.getValue();
+      const fullTex = preambleEditor.getValue() + '\n\\begin{document}\n' + body + '\n\\bibliographystyle{plainnat}\n\\bibliography{refs}\n\\end{document}';
       zip.file('main.tex', fullTex);
       zip.file('refs.bib', bibEditor.getValue());
+      const imgFolder = zip.folder('images');
       images.forEach(img => {
-        zip.file(img.name, Uint8Array.from(atob(img.data), c => c.charCodeAt(0)));
+        imgFolder.file(img.name, Uint8Array.from(atob(img.data), c => c.charCodeAt(0)));
       });
       const content = await zip.generateAsync({ type: 'blob' });
       const url = URL.createObjectURL(content);
@@ -756,26 +1070,29 @@ document.addEventListener('DOMContentLoaded', () => {
       a.click();
     });
   }
-
-  // Export to online compilers (simulated with prompt to copy LaTeX)
+  // Export to online compilers
   function exportToOnline(serviceUrl) {
-    const fullTex = preambleEditor.getValue() + '\n\\begin{document}\n' + mainEditor.getValue() + '\n\\end{document}';
+    const body = isVisualMode ? deltaToLatex(quill.getContents()) : mainEditor.getValue();
+    const fullTex = preambleEditor.getValue() + '\n\\begin{document}\n' + body + '\n\\bibliographystyle{plainnat}\n\\bibliography{refs}\n\\end{document}';
     navigator.clipboard.writeText(fullTex).then(() => {
       alert('Código LaTeX copiado al portapapeles. Pégalo en el editor de ' + serviceUrl);
       window.open(serviceUrl, '_blank');
     });
   }
-
   if (overleafExportBtn) overleafExportBtn.addEventListener('click', () => exportToOnline('https://www.overleaf.com/project/new'));
   if (texpageExportBtn) texpageExportBtn.addEventListener('click', () => exportToOnline('https://texpage.com/'));
   if (papeeriaExportBtn) papeeriaExportBtn.addEventListener('click', () => exportToOnline('https://www.papeeria.com/'));
   if (cocalcExportBtn) cocalcExportBtn.addEventListener('click', () => exportToOnline('https://cocalc.com/'));
   if (latexOnlineExportBtn) latexOnlineExportBtn.addEventListener('click', () => exportToOnline('https://latexonline.cc/'));
-
   // Análisis de texto
   if (analyzeButton && analysisOutput) {
     analyzeButton.addEventListener('click', () => {
-      const text = mainEditor.getValue();
+      let text;
+      if (isVisualMode) {
+        text = quill.getText();
+      } else {
+        text = mainEditor.getValue();
+      }
       const words = text.split(/\s+/).length;
       const sentences = text.split(/[.!?]+/).length;
       const paragraphs = text.split(/\n\n+/).length;
