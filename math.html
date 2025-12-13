@@ -5,10 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Herramientas de Matemáticas y Ciencia Gratuitas - Academic Tools</title>
-    <meta name="description" content="Render LaTeX en tiempo real, fórmula a imagen, editor de ecuaciones y conversor de unidades científicas. Procesado local.">
-    <meta name="keywords" content="render latex online, editor ecuaciones, conversor unidades científicas, herramientas para investigadores">
+    <meta name="description" content="Render LaTeX en tiempo real, fórmula a imagen, OCR de imágenes a fórmula, reconocimiento de escritura a mano, conversor de unidades, solucionador de ecuaciones y graficador de funciones. Procesado local.">
+    <meta name="keywords" content="render latex online, ocr math, handwriting math, editor ecuaciones, conversor unidades, solucionador ecuaciones, graficador funciones, herramientas para investigadores">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.0.0/math.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/tesseract.js@v5/dist/tesseract.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 </head>
 <body>
     <header>
@@ -27,58 +31,96 @@
     <main>
         <section>
             <h2>Render LaTeX en Tiempo Real</h2>
-            <p>Escribe LaTeX y ve el render inmediatamente.</p>
+            <p>Escribe LaTeX con sugerencias de símbolos y plantillas, ve el render inmediatamente.</p>
+            <select id="symbol-category">
+                <option value="basic">Básicos</option>
+                <option value="calculus">Cálculo</option>
+                <option value="greek">Griegos</option>
+                <option value="operators">Operadores</option>
+                <option value="relations">Relaciones</option>
+                <option value="negated_relations">Relaciones Negadas</option>
+                <option value="sets_logic">Conjuntos y Lógica</option>
+                <option value="geometry">Geometría</option>
+                <option value="arrows">Flechas</option>
+                <option value="miscellaneous">Misceláneos</option>
+                <option value="accents_diacritics">Acentos y Diacríticos</option>
+            </select>
+            <select id="symbol-select"></select>
+            <button id="insert-symbol">Insertar Símbolo</button>
+            <select id="template-select">
+                <option value="\\begin{pmatrix} a & b \\ c & d \\end{pmatrix}">Matriz 2x2</option>
+                <option value="\\int_{a}^{b} f(x) dx">Integral definida</option>
+                <!-- Más plantillas -->
+            </select>
+            <button id="insert-template">Insertar Plantilla</button>
             <textarea id="latex-input" placeholder="Escribe LaTeX..."></textarea>
             <div id="latex-output"></div>
+            <button id="copy-latex">Copiar LaTeX</button>
         </section>
         <section>
             <h2>Fórmula a Imagen</h2>
-            <p>Convierte fórmula LaTeX a imagen descargable.</p>
+            <p>Convierte fórmula LaTeX a imagen descargable con opciones de color y tamaño.</p>
+            <select id="color-select">
+                <option value="black">Negro</option>
+                <option value="red">Rojo</option>
+                <option value="blue">Azul</option>
+            </select>
+            <select id="size-select">
+                <option value="12">Pequeño</option>
+                <option value="16">Mediano</option>
+                <option value="20">Grande</option>
+            </select>
             <button id="formula-to-image">Generar Imagen</button>
             <canvas id="formula-canvas" style="display:none"></canvas>
             <a id="download-image" style="display:none">Descargar Imagen</a>
         </section>
         <section>
-            <h2>Editor Rápido de Ecuaciones</h2>
-            <p>Editor simple para ecuaciones con sugerencias.</p>
-            <input id="equation-editor" placeholder="Escribe ecuación...">
-            <button id="insert-symbol">Insertar Símbolo</button>
-            <select id="symbol-select">
-                <option value="\int">Integral</option>
-                <option value="\sum">Suma</option>
-                <option value="\sqrt">Raíz</option>
-                <!-- Más símbolos -->
-            </select>
-            <div id="equation-preview"></div>
+            <h2>OCR de Imagen a Fórmula</h2>
+            <p>Sube una imagen de ecuación impresa, extrae texto y intenta renderizar como LaTeX. (Precisión limitada para math complejo)</p>
+            <input type="file" id="ocr-input" accept="image/*">
+            <button id="ocr-button">Procesar OCR</button>
+            <pre id="ocr-output"></pre>
+            <div id="ocr-preview"></div>
+            <button id="copy-ocr">Copiar Texto</button>
+        </section>
+        <section>
+            <h2>Reconocimiento de Escritura a Mano</h2>
+            <p>Dibuja una ecuación con el cursor, procesa OCR para extraer texto y renderizar. (Mejor para impreso/simple)</p>
+            <canvas id="draw-canvas" width="400" height="200" style="border:1px solid black;"></canvas>
+            <button id="clear-draw">Limpiar</button>
+            <button id="ocr-draw">Procesar OCR</button>
+            <pre id="draw-output"></pre>
+            <div id="draw-preview"></div>
+            <button id="copy-draw">Copiar Texto</button>
         </section>
         <section>
             <h2>Conversor de Unidades Científicas</h2>
-            <p>Convierte unidades como metros a pies, etc.</p>
-            <input type="number" id="unit-value" placeholder="Valor">
-            <select id="unit-from">
-                <option value="m">Metros (m)</option>
-                <option value="cm">Centímetros (cm)</option>
-                <option value="km">Kilómetros (km)</option>
-                <option value="ft">Pies (ft)</option>
-                <option value="in">Pulgadas (in)</option>
-                <option value="kg">Kilogramos (kg)</option>
-                <option value="g">Gramos (g)</option>
-                <option value="lb">Libras (lb)</option>
-                <!-- Más unidades -->
+            <p>Convierte unidades en varias categorías usando math.js.</p>
+            <select id="unit-category">
+                <option value="length">Longitud</option>
+                <option value="mass">Masa</option>
+                <option value="temperature">Temperatura</option>
+                <option value="energy">Energía</option>
             </select>
-            <select id="unit-to">
-                <option value="m">Metros (m)</option>
-                <option value="cm">Centímetros (cm)</option>
-                <option value="km">Kilómetros (km)</option>
-                <option value="ft">Pies (ft)</option>
-                <option value="in">Pulgadas (in)</option>
-                <option value="kg">Kilogramos (kg)</option>
-                <option value="g">Gramos (g)</option>
-                <option value="lb">Libras (lb)</option>
-                <!-- Más unidades -->
-            </select>
+            <input type="text" id="unit-value" placeholder="Valor">
+            <select id="unit-from"></select>
+            <select id="unit-to"></select>
             <button id="convert-unit">Convertir</button>
             <div id="unit-result"></div>
+        </section>
+        <section>
+            <h2>Solucionador de Ecuaciones</h2>
+            <p>Resuelve expresiones matemáticas, ecuaciones, etc. Ej: solve(x^2 - 4 = 0, x)</p>
+            <textarea id="equation-input" placeholder="Escribe expresión..."></textarea>
+            <button id="solve-equation">Resolver</button>
+            <div id="equation-result"></div>
+        </section>
+        <section>
+            <h2>Graficador de Funciones</h2>
+            <p>Grafica funciones como sin(x) o x^2. Rango x: -5 a 5.</p>
+            <input id="function-input" placeholder="f(x) = ">
+            <button id="plot-function">Graficar</button>
+            <canvas id="plot-canvas"></canvas>
         </section>
     </main>
     <footer>
