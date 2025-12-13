@@ -366,178 +366,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Helper: cargar un script dinámicamente con timeout
-  function loadScript(url, timeout = 15000) {
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      let done = false;
-      s.src = url;
-      s.async = true;
-      s.onload = () => { if (!done) { done = true; resolve(); } };
-      s.onerror = (e) => { if (!done) { done = true; reject(new Error('Failed to load ' + url)); } };
-      document.head.appendChild(s);
-      setTimeout(() => { if (!done) { done = true; reject(new Error('Timeout loading ' + url)); } }, timeout);
-    });
-  }
-
-  // Intenta localizar un constructor PDFTeX en el entorno global
-  function findPDFTeXConstructor() {
-    // Nombres comunes
-    const names = ['PDFTeX', 'PdfTeX', 'pdftex', 'PDFTex', 'TeXLive', 'TexLive', 'PdfTex'];
-    for (const n of names) {
-      try {
-        if (typeof window[n] === 'function') {
-          console.log('Encontrado constructor PDFTeX en window.' + n);
-          return window[n];
-        }
-      } catch (e) {}
-    }
-    // Buscar en Module (muchos builds exponen API ahí)
-    try {
-      if (window.Module) {
-        if (typeof window.Module.PDFTeX === 'function') {
-          console.log('Encontrado constructor PDFTeX en window.Module.PDFTeX');
-          return window.Module.PDFTeX;
-        }
-        if (window.Module.exports && typeof window.Module.exports.PDFTeX === 'function') {
-          console.log('Encontrado constructor PDFTeX en window.Module.exports.PDFTeX');
-          return window.Module.exports.PDFTeX;
-        }
-        if (typeof window.Module.pdftex === 'function') {
-          console.log('Encontrado constructor PDFTeX en window.Module.pdftex');
-          return window.Module.pdftex;
-        }
-      }
-    } catch (e) {}
-    // Exploración amplia por heurística
-    for (const k in window) {
-      try {
-        if (k && k.toLowerCase().includes('pdf') && k.toLowerCase().includes('tex') && typeof window[k] === 'function') {
-          console.log('Encontrado constructor PDFTeX por heurística en window.' + k);
-          return window[k];
-        }
-      } catch (e) {}
-    }
-    return null;
-  }
-
-  // Espera activa (poll) por si un script ya incluido necesita tiempo para inicializar
-  function pollForPDFTeX(timeout = 8000, interval = 300) {
-    return new Promise((resolve, reject) => {
-      const start = Date.now();
-      (function loop() {
-        const ctor = findPDFTeXConstructor();
-        if (ctor) {
-          window.PDFTeX = ctor;
-          console.log('PDFTeX detectado durante poll y normalizado en window.PDFTeX');
-          return resolve();
-        }
-        if (Date.now() - start > timeout) {
-          return reject(new Error('Timeout esperando a que PDFTeX se inicialice'));
-        }
-        setTimeout(loop, interval);
-      })();
-    });
-  }
-
-  // Intentar asegurar que PDFTeX esté definido: primero detectar/esperar, luego intentar cargar candidatos
-  async function ensurePDFTeX() {
-    if (typeof PDFTeX !== 'undefined' && typeof PDFTeX === 'function') return;
-    // detección inmediata
-    const immediate = findPDFTeXConstructor();
-    if (immediate) {
-      window.PDFTeX = immediate;
-      return;
-    }
-
-    // dar un breve tiempo para que scripts ya cargados (p. ej. texlive.js incluido en HTML) inicialicen
-    try {
-      console.log('No hay constructor PDFTeX inmediato — iniciando poll para scripts ya incluidos');
-      await pollForPDFTeX(8000, 300);
-      return;
-    } catch (pollErr) {
-      console.warn('Poll no encontró PDFTeX rápidamente:', pollErr.message);
-      // continuar a intentar cargar candidatos externos
-    }
-
-    const candidates = [
-      // priorizar la URL que ya incluyes en el HTML
-      'https://manuels.github.io/texlive.js/dist/texlive.js',
-      // otros intentos conocidos (pueden no existir en tu entorno)
-      'https://unpkg.com/pdftex-wasm@latest/dist/pdftex.js',
-      'https://cdn.jsdelivr.net/npm/pdftex-wasm@latest/dist/pdftex.js',
-      // como último recurso, intentar rutas relativas (pero provocan 404 si no están presentes)
-      './texlive.js',
-      '/texlive.js'
-    ];
-
-    let lastErr = null;
-    for (const url of candidates) {
-      try {
-        console.log('Intentando cargar librería desde', url);
-        await loadScript(url);
-        // tras cargar, esperar un poco a que inicialice
-        try {
-          await pollForPDFTeX(3000, 200);
-        } catch (e) {
-          // si no se inicializa enseguida, intentar detectar directamente
-          const ctor = findPDFTeXConstructor();
-          if (ctor) window.PDFTeX = ctor;
-        }
-        if (typeof window.PDFTeX === 'function') {
-          console.log('PDFTeX normalizado en window.PDFTeX tras cargar', url);
-          return;
-        } else {
-          console.warn('Script cargado pero no se detectó constructor PDFTeX en globals tras cargar', url);
-        }
-      } catch (e) {
-        lastErr = e;
-        console.warn('Carga fallida desde', url, e);
-      }
-    }
-
-    // Depuración mínima: listar keys relevantes
-    try {
-      console.info('Keys relevantes de window para depuración (resumen):');
-      const sampleKeys = Object.keys(window).filter(k => /pdf|tex|texlive|module/i.test(k)).slice(0, 30);
-      console.info(sampleKeys);
-    } catch (e) {}
-
-    throw new Error('PDFTeX no disponible. Último error: ' + (lastErr && lastErr.message));
-  }
-
-  // Compilar LaTeX a PDF localmente
+  // Compilar LaTeX a PDF localmente con SwiftLaTeX
   if (compileButton && pdfPreview) {
     compileButton.addEventListener('click', async () => {
-      console.log("Iniciando compilación con PDFTeX");
+      console.log("Iniciando compilación con SwiftLaTeX XeTeXEngine");
       if (!preambleEditor || !mainEditor) {
         alert("Faltan editores");
-        return;
-      }
-
-      try {
-        await ensurePDFTeX();
-      } catch (e) {
-        console.error('Error asegurando PDFTeX:', e);
-        // Mostrar mensaje claro en UI y en consola
-        const msg = [
-          'No se pudo inicializar el compilador local (PDFTeX no está definido).',
-          'Sugerencias:',
-          '- Asegura que tu build de texlive/pdftex exponga un constructor global (PDFTeX).',
-          "- -o- Coloca un bundle llamado ./texlive.js o /texlive.js que exponga PDFTeX, o usa un paquete wasm (pdftex-wasm) disponible desde CDN.",
-          '- Alternativa: exporta el .tex y compílalo externamente.'
-        ].join('\n');
-        alert(msg + '\n\nDetalles técnicos: ' + e.message);
-        return;
-      }
-
-      let pdftex;
-      try {
-        pdftex = new PDFTeX();
-        console.log("PDFTeX inicializado correctamente");
-      } catch (e) {
-        console.error("Error creando PDFTeX:", e);
-        alert("Error al inicializar el compilador después de cargar la librería: " + e.message);
         return;
       }
 
@@ -545,26 +379,42 @@ document.addEventListener('DOMContentLoaded', () => {
       const bib = bibEditor ? bibEditor.getValue() : '';
 
       try {
-        pdftex.FS.writeFile('main.tex', fullLatex);
-        if (bib) pdftex.FS.writeFile('refs.bib', bib);
+        // Inicializar el engine (puede tardar en la primera vez)
+        const engine = new XeTeXEngine();  // O PdfTeXEngine si prefieres, pero XeTeX es mejor para UTF-8
+        await engine.loadEngine();
+
+        // Escribir archivos en el FS virtual
+        engine.writeMemFSFile('main.tex', fullLatex);
+        if (bib) engine.writeMemFSFile('refs.bib', bib);
 
         images.forEach(img => {
           const binary = atob(img.data);
           const array = new Uint8Array(binary.length);
           for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
-          pdftex.FS.writeFile(img.name, array);
+          engine.writeMemFSFile(img.name, array);
           console.log("Imagen escrita:", img.name);
         });
 
+        // Configurar y compilar
+        engine.setEngineMainFile('main.tex');
         console.log("Compilando LaTeX...");
-        const pdfUrl = await pdftex.compile(fullLatex);
+        const result = await engine.compileLaTeX();
 
-        pdfPreview.src = pdfUrl;
-        pdfPreview.style.display = 'block';
-        console.log("¡Compilación exitosa! PDF mostrado");
+        if (result.status === 0) {
+          const pdfBlob = new Blob([result.pdf], { type: 'application/pdf' });
+          const pdfUrl = URL.createObjectURL(pdfBlob);
+          pdfPreview.src = pdfUrl;
+          pdfPreview.style.display = 'block';
+          console.log("¡Compilación exitosa! PDF mostrado");
+          if (compileLog) compileLog.textContent = 'Compilación exitosa.';
+        } else {
+          console.error('Error en compilación:', result.log);
+          alert('Error en compilación: Revisa la consola para detalles.');
+          if (compileLog) compileLog.textContent = result.log;
+        }
       } catch (e) {
-        console.error('Error en compilación:', e);
-        alert('Error en compilación: ' + e.message + '\nRevisa la consola para más detalles. Puede ser un error de LaTeX o paquete no soportado.');
+        console.error('Error en compilación con SwiftLaTeX:', e);
+        alert('Error inicializando o compilando: ' + e.message + '\nAsegúrate de que XeTeXEngine.js y xetex-engine.wasm estén cargados correctamente.');
       }
     });
   }

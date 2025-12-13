@@ -36,7 +36,7 @@
         .dark .sidebar-item:hover { background: #444; }
         button, select, input { padding: 10px 15px; margin: 5px; }
         iframe { width: 100%; height: 600px; border: 1px solid #ccc; display: none; }
-        #compile-log { display: none; }
+        #compile-log { white-space: pre-wrap; background: #f8f8f8; padding: 10px; margin: 10px 0; border: 1px solid #ddd; display: block; } /* Mostrar log */
         #main-editor-container { display: flex; }
     </style>
 </head>
@@ -133,7 +133,7 @@
             <p>Compila localmente y ve el PDF generado. Si no funciona, verifica la consola para errores en compilación.</p>
             <button id="compile-pdf">Compilar a PDF</button>
             <iframe id="pdf-preview"></iframe>
-            <div id="compile-log"></div>
+            <div id="compile-log">Log de compilación...</div> <!-- Ahora visible -->
         </section>
         <section>
             <h2>Exportación del Proyecto</h2>
@@ -160,9 +160,8 @@
     <!-- Librerías externas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script src="https://manuels.github.io/texlive.js/dist/texlive.js"></script>
-    <!-- Fallback adicional: paquete wasm público que puede exponer PDFTeX -->
-    <script src="https://unpkg.com/pdftex-wasm@latest/dist/pdftex.js"></script>
+    <!-- SwiftLaTeX: Reemplaza con tu path real, e.g., /academic-tools/swiftlatex/XeTeXEngine.js -->
+    <script src="academic-tools/swiftlatex/XeTeXEngine.js"></script> <!-- Asegúrate de subir el archivo aquí -->
     <!-- CodeMirror 5 core -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
     <!-- Modo LaTeX (stex) + dependencias -->
