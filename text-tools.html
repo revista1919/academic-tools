@@ -4,94 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editor LaTeX Académico - Academic Tools</title>
-    <meta name="description" content="Editor LaTeX WYSIWYG como Word editable, con texto enriquecido, imágenes, tablas visuales, ecuaciones, citas bibliográficas visuales, sidebar de navegación, atajos de teclado, y exportación a ZIP estructurado LaTeX. Todo en navegador, sin servidores.">
-    <meta name="keywords" content="editor latex wysiwyg browser, herramientas academic overleaf alternativo, gratis ético">
+    <meta name="description" content="Editor LaTeX simplificado con configurador visual de preamble, herramientas rápidas (tablas, ecuaciones, citas) y edición principal en código puro.">
     <link rel="stylesheet" href="styles.css">
-    <!-- CSS de CodeMirror 5 -->
+    <!-- CodeMirror -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
-    <!-- KaTeX for math rendering -->
+    <!-- KaTeX -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-    <!-- QuillJS for WYSIWYG -->
+    <!-- Quill (solo para modales rápidos) -->
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
-    <!-- Mammoth for DOCX import -->
-    <script src="https://unpkg.com/mammoth@1.6.0/mammoth.browser.min.js"></script>
-    <!-- docx for DOCX export -->
-    <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
-    <!-- pdf.js for PDF import (text extraction only) -->
-    <script src="https://mozilla.github.io/pdf.js/build/pdf.min.js"></script>
-    <!-- FileSaver for saving blobs -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <!-- html2canvas for rendering equations to images in DOCX (limited) -->
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         body { font-family: system-ui, sans-serif; margin: 20px; background: #f9f9f9; }
         .dark { background: #1e1e1e; color: #fff; }
-        .editor-container {
-            border: 1px solid #ccc;
-            height: 450px;
-            margin: 20px 0;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
+        .editor-container { border: 1px solid #ccc; height: 500px; margin: 20px 0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
         .dark .editor-container { border-color: #444; }
         .CodeMirror { height: 100%; font-size: 14px; }
-        .ql-editor { height: 100%; font-size: 14px; }
-        .dark-editor { background: #1e1e1e; color: #fff; }
-        .sidebar {
-            width: 220px;
-            background: #f0f0f0;
-            padding: 15px;
-            height: 450px;
-            overflow-y: auto;
-            border-right: 1px solid #ddd;
-        }
+        .sidebar { width: 250px; background: #f0f0f0; padding: 15px; height: 500px; overflow-y: auto; border-right: 1px solid #ddd; }
         .dark .sidebar { background: #2d2d2d; }
         .sidebar-item { padding: 8px; cursor: pointer; border-left: 3px solid transparent; }
         .sidebar-item:hover { background: #ddd; border-left-color: #007acc; }
         .dark .sidebar-item:hover { background: #444; }
-        button, select, input { padding: 10px 15px; margin: 5px; border-radius: 4px; }
-        #main-editor-container { display: flex; }
-        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
-        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
-        .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
-        table { border-collapse: collapse; width: 100%; }
-        td { border: 1px solid #ddd; padding: 8px; }
-        td input { width: 100%; box-sizing: border-box; }
-        #equation-preview { margin: 20px 0; border: 1px solid #ddd; padding: 10px; border-radius: 4px; }
-        #word-count { font-weight: bold; margin: 10px; color: #007acc; }
-        .compiler-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
-        .compiler-card h3 { margin: 0 0 10px; }
-        .compiler-card button { background: #007acc; color: #fff; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
-        .compiler-card button:hover { background: #005f99; }
-        .dark .compiler-card { background: #333; border-color: #555; color: #fff; }
-        .equation { margin: 10px 0; text-align: center; border: 1px dashed #ccc; padding: 10px; border-radius: 4px; }
-        table { margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; }
-        .citation { background: #e6f7ff; padding: 2px 4px; border-radius: 4px; }
-        .figure { margin: 10px 0; text-align: center; border: 1px solid #ddd; padding: 10px; border-radius: 4px; }
-        .figure img { max-width: 100%; }
-        .caption { margin-top: 5px; font-style: italic; }
-        .abstract { font-style: italic; margin: 20px 0; border-top: 1px solid #ccc; padding-top: 10px; }
-        .theorem { border-left: 5px solid #007acc; padding: 10px 15px; margin: 10px 0; background: #f0f8ff; }
-        .lemma { border-left: 5px solid #28a745; padding: 10px 15px; margin: 10px 0; background: #f4fff4; }
-        .proof { border-left: 5px solid #ffc107; padding: 10px 15px; margin: 10px 0; background: #fffdf0; }
-        #code-tools button { background: #f8f9fa; border: 1px solid #ddd; margin: 3px; }
-        #code-tools button:hover { background: #e2e6ea; }
-        .page-container { max-width: 21cm; margin: 0 auto; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.2); }
-        body { background: #eee; }
-        .ql-editor { padding: 2.5cm; }
-        #page-settings { position: fixed; top: 20px; right: 20px; background: white; padding: 10px; border: 1px solid #ccc; border-radius: 4px; z-index: 10; }
-        #custom-size { display: none; }
-        #status-messages { color: red; margin: 10px; font-weight: bold; }
+        .config-panel { background: #fff; padding: 20px; border: 1px solid #ddd; border-radius: 8px; margin: 15px 0; }
+        .dark .config-panel { background: #333; border-color: #555; }
+        .tab { overflow: hidden; border: 1px solid #ccc; background: #f1f1f1; border-radius: 4px 4px 0 0; }
+        .tab button { background: none; border: none; padding: 12px 20px; cursor: pointer; }
+        .tab button.active { background: #007acc; color: white; }
+        .tabcontent { display: none; padding: 20px; border: 1px solid #ccc; border-top: none; background: white; }
+        .dark .tabcontent { background: #333; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        button, select, input { padding: 10px; margin: 5px; border-radius: 4px; }
+        .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: white; margin: 5% auto; padding: 20px; width: 80%; max-width: 800px; border-radius: 8px; }
+        .dark .modal-content { background: #333; }
+        .close { float: right; font-size: 28px; cursor: pointer; }
+        #word-count { font-weight: bold; margin: 10px 0; color: #007acc; }
+        .compiler-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; flex: 1; min-width: 200px; }
+        .dark .compiler-card { background: #333; border-color: #555; }
     </style>
 </head>
 <body>
     <header>
         <img src="assets/logoP.png" alt="Academic Tools Logo" class="logo">
-        <h1>Editor LaTeX Académico Gratuito - Modo WYSIWYG como Word</h1>
+        <h1>Editor LaTeX Académico Simplificado</h1>
         <nav>
             <ul>
                 <li><a href="index.html">Inicio</a></li>
@@ -102,164 +57,206 @@
             </ul>
         </nav>
     </header>
+
     <main>
         <section>
-            <h2>Guía Rápida para Empezar</h2>
-            <p>1. Selecciona una plantilla y genera la estructura base.</p>
-            <p>2. Edita en modo visual WYSIWYG como Word: texto enriquecido, imágenes (arrastra o inserta), tablas y ecuaciones visuales editables con doble click.</p>
-            <p>3. Inserta citas bibliográficas visuales (aparecen como (Autor, Año)) desde DOI/ISBN o .bib, editable con doble click.</p>
-            <p>4. Usa atajos de teclado (Ctrl-B negrita, Ctrl-S sección, Ctrl-Q ecuación, etc.).</p>
-            <p>5. Cambia a modo código para avanzado, con botones de inserción preservados. Exporta a ZIP estructurado LaTeX (con carpeta images) o compila online.</p>
-            <p>6. Conteo de palabras en tiempo real, buscar/reemplazar, versiones, auto-guardado cada 30s, análisis, y más UX: spellcheck, modales editables, sidebar extendida.</p>
-            <p><strong>Nota de honestidad:</strong> Este editor prioriza claridad, previsibilidad y control del usuario por sobre compatibilidad total con LaTeX. Solo soporta elementos básicos (párrafos, secciones, listas, estilos simples, ecuaciones, tablas, figuras, citas básicas). Macros arbitrarios, clases personalizadas y layouts avanzados no se soportan y pueden perderse o aproximarse. Siempre se te informará de limitaciones o ambigüedades. La vista es continua (no paginada como Word real, ya que no es posible en navegador puro con Quill sin complejidad extrema; alternativa: usa impresión para ver páginas). Import de PDF limitado a texto plano (estructura/imágenes perdidas). Export a DOCX aproxima math como texto (no renders perfectos).</p>
-            <div id="status-messages"></div>
+            <h2>Configurador Visual del Preamble</h2>
+            <div class="config-panel">
+                <div class="tab">
+                    <button class="tablinks active" onclick="openTab(event, 'basic')">Básico</button>
+                    <button class="tablinks" onclick="openTab(event, 'advanced')">Avanzado</button>
+                    <button class="tablinks" onclick="openTab(event, 'manual')">Manual</button>
+                </div>
+
+                <div id="basic" class="tabcontent" style="display:block;">
+                    <label>Plantilla base:</label>
+                    <select id="template-select">
+                        <option value="article">Article (estándar)</option>
+                        <option value="book">Book</option>
+                        <option value="report">Report</option>
+                        <option value="IEEEtran">IEEEtran (conference)</option>
+                        <option value="elsarticle">Elsarticle</option>
+                        <option value="svjour3">Springer svjour3</option>
+                        <option value="tesis">Tesis Chilena</option>
+                    </select><br><br>
+
+                    <div class="grid-2">
+                        <div>
+                            <label>Tamaño de página:</label>
+                            <select id="paper-size">
+                                <option value="a4paper">A4</option>
+                                <option value="letterpaper">Letter</option>
+                                <option value="a5paper">A5</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Fuente principal:</label>
+                            <select id="font-family">
+                                <option value="lmodern">Latin Modern (predeterminado)</option>
+                                <option value="times">Times (newtx)</option>
+                                <option value="palatino">Palatino (newpx)</option>
+                                <option value="libertine">Libertine</option>
+                                <option value="fourier">Utopia (fourier)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Tamaño de letra:</label>
+                            <select id="font-size">
+                                <option value="10pt">10pt</option>
+                                <option value="11pt">11pt</option>
+                                <option value="12pt">12pt</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Interlineado:</label>
+                            <select id="linespacing">
+                                <option value="singlespacing">Sencillo</option>
+                                <option value="onehalfspacing">1.5</option>
+                                <option value="doublespacing">Doble</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="advanced" class="tabcontent">
+                    <label>Márgenes personalizados (cm):</label>
+                    <div class="grid-2">
+                        <input type="number" id="margin-top" placeholder="Superior" step="0.1" value="2.5">
+                        <input type="number" id="margin-bottom" placeholder="Inferior" step="0.1" value="2.5">
+                        <input type="number" id="margin-left" placeholder="Izquierdo" step="0.1" value="3">
+                        <input type="number" id="margin-right" placeholder="Derecho" step="0.1" value="2.5">
+                    </div>
+                    <br>
+                    <label>Paquetes adicionales comunes:</label><br>
+                    <label><input type="checkbox" id="pkg-graphicx"> graphicx</label>
+                    <label><input type="checkbox" id="pkg-amsmath"> amsmath</label>
+                    <label><input type="checkbox" id="pkg-booktabs"> booktabs</label>
+                    <label><input type="checkbox" id="pkg-hyperref"> hyperref</label>
+                    <label><input type="checkbox" id="pkg-natbib"> natbib</label>
+                    <label><input type="checkbox" id="pkg-babel-spanish"> babel (spanish)</label>
+                </div>
+
+                <div id="manual" class="tabcontent">
+                    <label>Código adicional (se añade al final):</label><br>
+                    <textarea id="manual-preamble" rows="6" style="width:100%; padding:10px;"></textarea>
+                </div>
+
+                <br>
+                <button id="apply-preamble">Aplicar Configuración al Preamble</button>
+                <button id="copy-preamble">Copiar Preamble al Portapapeles</button>
+            </div>
         </section>
+
         <section>
-            <h2>Selecciona Plantilla y Genera Proyecto</h2>
-            <select id="template-select">
-                <option value="APA">APA</option>
-                <option value="Chicago">Chicago</option>
-                <option value="IEEE">IEEE</option>
-                <option value="Springer">Springer</option>
-                <option value="Elsevier">Elsevier</option>
-                <option value="Tesis Chilena">Tesis Chilena</option>
-                <option value="MLA">MLA</option>
-                <option value="Harvard">Harvard</option>
-            </select>
-            <button id="generate-structure">Generar Estructura</button>
-            <button id="toggle-mode">Cambiar a Modo Código</button>
-            <button id="add-package">Añadir Paquete a Preamble</button>
-        </section>
-        <section>
-            <h2>Importar Proyecto o Archivos</h2>
-            <label for="import-zip">Importar .zip:</label>
-            <input type="file" id="import-zip" accept=".zip">
-            <label for="import-tex">Importar .tex:</label>
-            <input type="file" id="import-tex" accept=".tex">
-            <label for="import-bib">Importar .bib:</label>
-            <input type="file" id="import-bib" accept=".bib">
-            <label for="import-docx">Importar .docx (aproximado):</label>
-            <input type="file" id="import-docx" accept=".docx">
-            <label for="import-pdf">Importar .pdf (solo texto, sin estructura):</label>
-            <input type="file" id="import-pdf" accept=".pdf">
-        </section>
-        <section>
-            <h2>Editor de Preamble (Paquetes y Configuración)</h2>
+            <h2>Preamble Generado</h2>
             <div id="preamble-editor" class="editor-container"></div>
         </section>
+
         <section>
-            <h2>Editor Principal (Cuerpo del Documento - Modo Visual WYSIWYG como Word)</h2>
-            <div id="main-editor-container">
+            <h2>Cuerpo del Documento (Edición en Código LaTeX)</h2>
+            <div style="display: flex;">
                 <div id="sidebar" class="sidebar"><strong>Secciones</strong></div>
                 <div style="flex: 1;">
-                    <div class="page-container">
-                        <div id="visual-editor" class="editor-container"></div>
-                    </div>
                     <div id="main-editor" class="editor-container"></div>
                 </div>
             </div>
             <div id="word-count">Palabras: 0</div>
         </section>
-        <div id="page-settings">
-            <h3>Configuración de Página (se refleja en vista y exportaciones)</h3>
-            <label>Tamaño:</label>
-            <select id="paper-size">
-                <option value="a4">A4</option>
-                <option value="letter">Carta</option>
-                <option value="legal">Oficio</option>
-                <option value="custom">Custom</option>
-            </select>
-            <div id="custom-size">
-                <label>Ancho (cm):</label>
-                <input type="number" id="custom-width" value="21" step="0.1">
-                <label>Alto (cm):</label>
-                <input type="number" id="custom-height" value="29.7" step="0.1">
-            </div>
-            <label>Orientación:</label>
-            <select id="orientation">
-                <option value="portrait">Vertical</option>
-                <option value="landscape">Horizontal</option>
-            </select>
-            <label>Márgenes (cm):</label>
-            <input type="number" id="margin-top" value="2.5" step="0.1">
-            <input type="number" id="margin-bottom" value="2.5" step="0.1">
-            <input type="number" id="margin-left" value="2.5" step="0.1">
-            <input type="number" id="margin-right" value="2.5" step="0.1">
-            <label>Interlineado:</label>
-            <select id="line-spacing">
-                <option value="1">Sencillo</option>
-                <option value="1.5">1.5</option>
-                <option value="2">Doble</option>
-            </select>
-            <label>Alineación por defecto:</label>
-            <select id="paragraph-align">
-                <option value="left">Izquierda</option>
-                <option value="justify">Justificado</option>
-                <option value="center">Centro</option>
-                <option value="right">Derecha</option>
-            </select>
-            <button id="apply-page-settings">Aplicar</button>
-        </div>
-        <section id="code-tools" style="display: none;">
-            <h2>Herramientas para Modo Código (Inserciones Rápidas Preservadas)</h2>
-            <!-- (botones existentes) -->
-            <button id="find-replace-btn">Buscar/Reemplazar</button>
-        </section>
+
         <section>
-            <h2>Editor de Referencias BibTeX</h2>
-            <input type="text" id="doi-input" placeholder="Ingresa DOI">
-            <button id="fetch-bib">Añadir desde DOI</button>
-            <input type="text" id="isbn-input" placeholder="Ingresa ISBN">
-            <button id="fetch-isbn">Añadir desde ISBN</button>
+            <h2>Herramientas Rápidas (Tablas, Ecuaciones, Citas)</h2>
+            <button id="open-table-modal">Crear/Editar Tabla Visual → LaTeX</button>
+            <button id="open-equation-modal">Crear Ecuación con Preview → LaTeX</button>
+            <button id="open-citation-modal">Insertar Cita desde .bib</button>
+        </section>
+
+        <section>
+            <h2>Referencias BibTeX</h2>
+            <input type="text" id="doi-input" placeholder="DOI">
+            <button id="fetch-bib">Desde DOI</button>
+            <input type="text" id="isbn-input" placeholder="ISBN">
+            <button id="fetch-isbn">Desde ISBN</button>
+            <br><br>
             <div id="bib-editor" class="editor-container"></div>
         </section>
+
+        <section>
+            <h2>Exportación</h2>
+            <button id="export-tex">Descargar .tex completo</button>
+            <button id="export-zip">Descargar Proyecto .zip</button>
+            <button id="save-version">Guardar Versión</button>
+        </section>
+
         <section>
             <h2>Compilación Online</h2>
-            <p>Exporta tu documento y compílalo en servicios online. Copia el LaTeX y pégalo en el editor del servicio.</p>
-            <!-- (cards existentes) -->
+            <div style="display: flex; flex-wrap: wrap; justify-content: center;">
+                <div class="compiler-card">
+                    <h3>Overleaf</h3>
+                    <button id="export-to-overleaf">Exportar</button>
+                </div>
+                <div class="compiler-card">
+                    <h3>TeXPage</h3>
+                    <button id="export-to-texpage">Exportar</button>
+                </div>
+                <div class="compiler-card">
+                    <h3>Papeeria</h3>
+                    <button id="export-to-papeeria">Exportar</button>
+                </div>
+                <div class="compiler-card">
+                    <h3>CoCalc</h3>
+                    <button id="export-to-cocalc">Exportar</button>
+                </div>
+                <div class="compiler-card">
+                    <h3>LaTeX Online</h3>
+                    <button id="export-to-latexonline">Exportar</button>
+                </div>
+            </div>
         </section>
-        <section>
-            <h2>Exportación Local del Proyecto</h2>
-            <button id="export-tex">Descargar .tex</button>
-            <button id="export-zip">Descargar Proyecto .zip (Estructurado con images/)</button>
-            <button id="export-pdf">Exportar a PDF (Usa impresión del navegador para paginación)</button>
-            <button id="export-docx">Exportar a DOCX (Aproximado, math como texto)</button>
-        </section>
-        <section>
-            <h2>Historial de Versiones</h2>
-            <button id="save-version">Guardar Versión Actual</button>
-            <div id="versions-list"></div>
-        </section>
-        <section>
-            <h2>Revisión y Análisis Académico</h2>
-            <button id="analyze-text">Analizar Documento</button>
-            <div id="analysis-output"></div>
-        </section>
-        <button id="dark-mode-toggle">Alternar Modo Oscuro</button>
+
+        <button id="dark-mode-toggle">Modo Oscuro</button>
     </main>
-    <!-- Modals existentes + nuevo para ambigüedades -->
-    <!-- (modals existentes para table, equation, citation, find-replace) -->
-    <div id="ambiguity-modal" class="modal">
+
+    <!-- Modales -->
+    <div id="table-modal" class="modal">
         <div class="modal-content">
-            <span id="close-ambiguity-modal" class="close">&times;</span>
-            <h2>Ambigüedades Detectadas en Importación</h2>
-            <p>Elementos no interpretables con certeza. Elige cómo manejarlos (esto prioriza tu control).</p>
-            <ul id="ambiguities-list"></ul>
-            <button id="ignore-ambiguities">Ignorar Todo</button>
-            <button id="treat-as-text">Tratar como Texto (añadir como código)</button>
+            <span class="close" id="close-table-modal">&times;</span>
+            <h2>Editor Visual de Tabla → Código LaTeX listo</h2>
+            <label>Filas: <input type="number" id="table-rows" value="3" min="1"></label>
+            <label>Columnas: <input type="number" id="table-cols" value="3" min="1"></label>
+            <button id="generate-table-grid">Generar</button>
+            <table id="table-grid" style="width:100%; margin-top:20px;"></table>
+            <button id="insert-table-code" style="margin-top:20px; background:#007acc; color:white;">Insertar Código LaTeX en Editor</button>
         </div>
     </div>
+
+    <div id="equation-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="close-equation-modal">&times;</span>
+            <h2>Ecuación con Preview → Código LaTeX listo</h2>
+            <input type="text" id="equation-input" placeholder="\sum_{i=1}^n i = \frac{n(n+1)}{2}" style="width:100%; padding:10px;">
+            <div id="equation-preview" style="margin:20px 0; padding:20px; border:1px solid #ddd; min-height:60px;"></div>
+            <button id="insert-equation-code" style="background:#007acc; color:white;">Insertar Código LaTeX</button>
+        </div>
+    </div>
+
+    <div id="citation-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="close-citation-modal">&times;</span>
+            <h2>Insertar Cita</h2>
+            <select id="citation-select" size="10" style="width:100%; height:200px;"></select>
+            <button id="insert-citation-code" style="margin-top:10px; background:#007acc; color:white;">Insertar \cite{}</button>
+        </div>
+    </div>
+
     <footer>
-        <p>Academic Tools - Gratuito y ético. Todo 100% local en tu navegador. Errores corregidos, funciones preservadas, UX mejorada con creatividad (drag-drop imágenes, spellcheck, modales editables, sidebar extendida, más blots para teoremas, etc.).</p>
+        <p>Academic Tools - 100% local. Simplificado para uso real: edición en código + herramientas rápidas puntuales.</p>
     </footer>
-    <!-- Librerías externas existentes -->
+
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/stex/stex.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
     <script src="tools/text.js"></script>
 </body>
 </html>
