@@ -1,81 +1,69 @@
-// tools/text.js
-console.log("Iniciando carga de módulos...");
-
-import { EditorView, keymap, lineNumbers } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { indentOnInput } from "@codemirror/language";
-import { autocompletion } from "@codemirror/autocomplete";
-import { latex } from "codemirror-lang-latex";
-// BibTeX temporalmente desactivado (opcional)
-// import { bibtex } from "@codemirror/lang-markdown"; // si quieres BibTeX, usa otra librería más adelante
-
-console.log("Todos los módulos de CodeMirror cargados correctamente");
+console.log("text.js cargado - usando CodeMirror global");
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM cargado - iniciando editores");
+    console.log("DOM listo - creando editores");
 
-    const commonExtensions = [
-        lineNumbers(),
-        history(),
-        indentOnInput(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
-        autocompletion(),
-        EditorView.theme({}, { dark: false })
-    ];
+    // Config común
+    const commonConfig = {
+        lineNumbers: true,
+        matchBrackets: true,
+        indentWithTabs: true,
+        tabSize: 4
+    };
 
-    // Preamble
-    new EditorView({
-        state: EditorState.create({
-            doc: "\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{graphicx}\n",
-            extensions: [...commonExtensions, latex()]
-        }),
-        parent: document.getElementById("preamble-editor")
+    // Preamble editor (modo TeX/LaTeX)
+    const preambleEditor = CodeMirror(document.getElementById("preamble-editor"), {
+        value: "\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{graphicx}\n",
+        mode: "stex",
+        ...commonConfig
     });
-    console.log("Preamble editor creado");
+    console.log("Preamble creado");
 
     // Main editor
-    const updateListener = EditorView.updateListener.of(u => u.docChanged && updateSidebar());
-    new EditorView({
-        state: EditorState.create({
-            doc: "\\begin{document}\nHola mundo\n\\end{document}",
-            extensions: [...commonExtensions, latex(), updateListener]
-        }),
-        parent: document.getElementById("main-editor")
+    const mainEditor = CodeMirror(document.getElementById("main-editor"), {
+        value: "\\begin{document}\nHola mundo\n\\end{document}",
+        mode: "stex",
+        ...commonConfig
     });
-    console.log("Main editor creado");
+    console.log("Main creado");
 
-    // Bib editor (solo texto plano por ahora, funciona perfecto)
-    new EditorView({
-        state: EditorState.create({
-            doc: "",
-            extensions: commonExtensions
-        }),
-        parent: document.getElementById("bib-editor")
+    // Bib editor (modo plain text por ahora)
+    const bibEditor = CodeMirror(document.getElementById("bib-editor"), {
+        value: "",
+        mode: "text/plain",
+        ...commonConfig
     });
-    console.log("Bib editor creado (modo texto plano)");
-
-    // Sidebar
-    function updateSidebar() {
-        const sidebar = document.getElementById("sidebar");
-        if (!sidebar) return;
-        sidebar.innerHTML = "<strong>Secciones:</strong><br>";
-        const text = document.querySelector("#main-editor .cm-content").textContent;
-        const regex = /\\(chapter|section|subsection|subsubsection){([^}]+)}/g;
-        let match;
-        while ((match = regex.exec(text))) {
-            const level = {chapter: '→', section: '••', subsection: '◦', subsubsection: '·'}[match[1]] || '';
-            const item = document.createElement("div");
-            item.textContent = level + " " + match[2].trim();
-            item.onclick = () => alert("Navegar a: " + match[2].trim()); // futuro: scroll
-            sidebar.appendChild(item);
-        }
-    }
+    console.log("Bib creado");
 
     // Dark mode
-    document.getElementById("dark-mode-toggle").addEventListener("click", () => {
+    document.getElementById("dark-mode-toggle").onclick = () => {
         document.body.classList.toggle("dark");
-    });
+        [preambleEditor, mainEditor, bibEditor].forEach(ed => ed.refresh());
+    };
 
-    console.log("Todo listo! El editor debería verse perfectamente ahora.");
+    // Generar estructura (ejemplo simple)
+    document.getElementById("generate-structure").onclick = () => {
+        mainEditor.setValue("\\begin{document}\n\\maketitle\n\n\\section{Introducción}\nTexto aquí...\n\\end{document}");
+        console.log("Estructura generada");
+    };
+
+    // Sidebar básica
+    function updateSidebar() {
+        const sidebar = document.getElementById("sidebar");
+        sidebar.innerHTML = "<strong>Secciones detectadas:</strong><br>";
+        const lines = mainEditor.getValue().split("\n");
+        lines.forEach((line, i) => {
+            if (line.match(/^\\section/)) {
+                const item = document.createElement("div");
+                item.className = "sidebar-item";
+                item.textContent = line.replace(/.*\{(.*)\}.*/, "$1");
+                item.onclick = () => mainEditor.scrollIntoView({line: i, ch: 0});
+                sidebar.appendChild(item);
+            }
+        });
+    }
+    mainEditor.on("change", updateSidebar);
+    updateSidebar();
+
+    console.log("¡Editores listos! Deberías verlos con texto ahora.");
 });

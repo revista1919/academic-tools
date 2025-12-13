@@ -6,65 +6,36 @@
     <title>Editor LaTeX Académico - Academic Tools</title>
     <link rel="stylesheet" href="styles.css">
 
-    <!-- CSS de CodeMirror (versión estable y sin redirects) -->
-    <link rel="stylesheet" href="https://unpkg.com/@codemirror/theme-one-dark@6.1.2/dist/index.css">
-    <link rel="stylesheet" href="https://unpkg.com/@codemirror/view@6.23.0/dist/index.css">
+    <!-- CSS base de CodeMirror 6 (de cdnjs, estable) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.css">
 
-    <!-- Importmap con versiones que EXISTEN y funcionan al 100% -->
-    <script type="importmap">
-    {
-      "imports": {
-        "@codemirror/state": "https://unpkg.com/@codemirror/state@6.4.1/dist/index.js",
-        "@codemirror/view": "https://unpkg.com/@codemirror/view@6.23.0/dist/index.js",
-        "@codemirror/commands": "https://unpkg.com/@codemirror/commands@6.3.3/dist/index.js",
-        "@codemirror/language": "https://unpkg.com/@codemirror/language@6.10.0/dist/index.js",
-        "@codemirror/autocomplete": "https://unpkg.com/@codemirror/autocomplete@6.18.0/dist/index.js",
-        "@codemirror/lint": "https://unpkg.com/@codemirror/lint@6.5.0/dist/index.js",
-
-        "codemirror-lang-latex": "https://unpkg.com/@codemirror/lang-latex@6.1.1/dist/index.js",
-        "@codemirror/lang-markdown": "https://unpkg.com/@codemirror/lang-markdown@6.2.4/dist/index.js",
-
-        "@lezer/common": "https://unpkg.com/@lezer/common@1.2.1/dist/index.js",
-        "@lezer/highlight": "https://unpkg.com/@lezer/highlight@1.2.0/dist/index.js",
-        "@lezer/lr": "https://unpkg.com/@lezer/lr@1.4.0/dist/index.js"
-      }
-    }
-    </script>
-
+    <!-- Estilos adicionales opcionales (tema oscuro, etc.) -->
     <style>
-        body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; background: #f9f9f9; }
+        body { font-family: system-ui, sans-serif; margin: 20px; background: #f9f9f9; }
         .dark { background: #1e1e1e; color: #fff; }
         .editor-container {
             border: 1px solid #ccc;
             height: 450px;
-            margin: 15px 0;
+            margin: 20px 0;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
-        .dark .editor-container { background: #1e1e1e !important; }
-        .sidebar { 
-            width: 220px; 
-            float: left; 
-            background: #f0f0f0; 
-            padding: 15px; 
-            height: 450px; 
-            overflow-y: auto;
-            border-right: 1px solid #ddd;
-        }
+        .dark .editor-container { border-color: #444; }
+        .CodeMirror { height: 100%; }
+        .sidebar { width: 220px; float: left; background: #f0f0f0; padding: 15px; height: 450px; overflow-y: auto; border-right: 1px solid #ddd; }
         .dark .sidebar { background: #2d2d2d; }
-        .sidebar-item { padding: 6px 0 6px 10px; cursor: pointer; border-left: 3px solid transparent; }
-        .sidebar-item:hover { background: #e0e0e0; border-left-color: #007acc; }
-        .dark .sidebar-item:hover { background: #3d3d3d; }
-        button, select, input { margin: 5px; padding: 8px 12px; }
+        .sidebar-item { padding: 8px; cursor: pointer; }
+        .sidebar-item:hover { background: #ddd; }
+        .dark .sidebar-item:hover { background: #444; }
+        button { padding: 10px 15px; margin: 5px; }
         iframe { width: 100%; height: 600px; border: 1px solid #ccc; display: none; }
     </style>
 </head>
 <body>
 
-    <!-- Todo tu HTML igual que antes -->
     <h1>Editor LaTeX Académico Gratuito</h1>
-    <button id="dark-mode-toggle">Modo Oscuro</button>
+    <button id="dark-mode-toggle">Alternar Modo Oscuro</button>
 
     <select id="template-select">
         <option value="APA">APA</option>
@@ -76,15 +47,15 @@
     </select>
     <button id="generate-structure">Generar Estructura</button>
 
-    <div style="clear:both"></div>
+    <hr style="clear:both;">
 
     <h2>Preamble</h2>
     <div id="preamble-editor" class="editor-container"></div>
 
     <h2>Documento Principal</h2>
-    <div style="display:flex;">
-        <div id="sidebar" class="sidebar"></div>
-        <div style="flex:1;">
+    <div style="display: flex;">
+        <div id="sidebar" class="sidebar"><strong>Secciones</strong></div>
+        <div style="flex: 1;">
             <div id="main-editor" class="editor-container"></div>
         </div>
     </div>
@@ -95,15 +66,27 @@
     <button id="compile-pdf">Compilar PDF</button>
     <iframe id="pdf-preview"></iframe>
 
-    <!-- Tus otros botones aquí (insertar sección, figura, etc.) -->
-
-    <!-- Scripts externos -->
+    <!-- Scripts externos (texlive.js puede tener CORB, pero no bloquea editores) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://manuels.github.io/texlive.js/dist/texlive.js"></script>
 
-    <!-- NUESTRO JS (con todos los logs) -->
-    <script type="module" src="tools/text.js"></script> -->
-    <script type="module" src="tools/text.js"></script>
+    <!-- CodeMirror 6 core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.js"></script>
+
+    <!-- Modos necesarios -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/stex/stex.min.js"></script> <!-- Para LaTeX -->
+
+    <!-- Addons útiles -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/search/search.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/search/searchcursor.min.js"></script>
+
+    <!-- TU SCRIPT (sin modules, usando CodeMirror global) -->
+    <script src="tools/text.js"></script>
 </body>
 </html>
