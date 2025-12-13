@@ -380,29 +380,86 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Intenta localizar un constructor PDFTeX en el entorno global
+  function findPDFTeXConstructor() {
+    // Nombres comunes
+    const names = ['PDFTeX', 'PdfTeX', 'pdftex', 'PDFTex', 'TeXLive', 'TexLive', 'PdfTex'];
+    for (const n of names) {
+      try {
+        if (typeof window[n] === 'function') {
+          console.log('Encontrado constructor PDFTeX en window.' + n);
+          return window[n];
+        }
+      } catch (e) {}
+    }
+    // Buscar en Module (muchos builds exponen API ahí)
+    try {
+      if (window.Module) {
+        if (typeof window.Module.PDFTeX === 'function') {
+          console.log('Encontrado constructor PDFTeX en window.Module.PDFTeX');
+          return window.Module.PDFTeX;
+        }
+        // algunas builds colocan la función en Module.exports o Module.pdftex
+        if (window.Module.exports && typeof window.Module.exports.PDFTeX === 'function') {
+          console.log('Encontrado constructor PDFTeX en window.Module.exports.PDFTeX');
+          return window.Module.exports.PDFTeX;
+        }
+        if (typeof window.Module.pdftex === 'function') {
+          console.log('Encontrado constructor PDFTeX en window.Module.pdftex');
+          return window.Module.pdftex;
+        }
+      }
+    } catch (e) {}
+    // Exploración amplia por seguridad: buscar cualquier global cuyo nombre sugiera pdf+tex
+    for (const k in window) {
+      try {
+        if (k && k.toLowerCase().includes('pdf') && k.toLowerCase().includes('tex') && typeof window[k] === 'function') {
+          console.log('Encontrado constructor PDFTeX por heurística en window.' + k);
+          return window[k];
+        }
+      } catch (e) {}
+    }
+    return null;
+  }
+
   // Intentar asegurar que PDFTeX esté definido: probar rutas comunes/candidatas
   async function ensurePDFTeX() {
-    if (typeof PDFTeX !== 'undefined') return;
+    if (typeof PDFTeX !== 'undefined' && typeof PDFTeX === 'function') return;
     const candidates = [
       './texlive.js',
       '/texlive.js',
-      // intento con un paquete wasm público (puede no existir en todos los entornos)
-      'https://unpkg.com/pdftex-wasm@latest/dist/pdftex.js'
+      // CDN fallback (puede variar según disponibilidad)
+      'https://unpkg.com/pdftex-wasm@latest/dist/pdftex.js',
+      'https://cdn.jsdelivr.net/npm/pdftex-wasm@latest/dist/pdftex.js'
     ];
     let lastErr = null;
     for (const url of candidates) {
       try {
-        console.log('Intentando cargar PDFTeX desde', url);
+        console.log('Intentando cargar librería desde', url);
         await loadScript(url);
-        if (typeof PDFTeX !== 'undefined') {
-          console.log('PDFTeX disponible tras cargar', url);
+        // tras cargar, intentar encontrar constructor
+        const ctor = findPDFTeXConstructor();
+        if (ctor) {
+          // normalizar export bajo window.PDFTeX
+          window.PDFTeX = ctor;
+          console.log('PDFTeX normalizado en window.PDFTeX');
           return;
+        } else {
+          console.warn('Script cargado pero no se detectó constructor PDFTeX en globals tras cargar', url);
         }
       } catch (e) {
         lastErr = e;
         console.warn('Carga fallida desde', url, e);
       }
     }
+
+    // Si no se encontró, dar info de depuración ligera (no exponer demasiado)
+    try {
+      console.info('Keys relevantes de window para depuración (resumen):');
+      const sampleKeys = Object.keys(window).filter(k => /pdf|tex|texlive|module/i.test(k)).slice(0, 30);
+      console.info(sampleKeys);
+    } catch (e) {}
+
     throw new Error('PDFTeX no disponible. Último error: ' + (lastErr && lastErr.message));
   }
 
@@ -419,14 +476,15 @@ document.addEventListener('DOMContentLoaded', () => {
         await ensurePDFTeX();
       } catch (e) {
         console.error('Error asegurando PDFTeX:', e);
-        alert(
-          'No se pudo inicializar el compilador local (PDFTeX no está definido).\n\n' +
-          'Sugerencias:\n' +
-          '- Sirve localmente un archivo texlive.js en la raíz del sitio (./texlive.js) o en /texlive.js\n' +
-          "- -o- Usa un paquete wasm como pdftex-wasm y expón PDFTeX en la página.\n" +
-          '- Alternativa: exporta el .tex (botón "export-tex") y compílalo externamente.\n\n' +
-          'Detalles: ' + e.message
-        );
+        // Mostrar mensaje claro en UI y en consola
+        const msg = [
+          'No se pudo inicializar el compilador local (PDFTeX no está definido).',
+          'Sugerencias:',
+          '- Asegura que tu build de texlive/pdftex exponga un constructor global (PDFTeX).',
+          "- -o- Coloca un bundle llamado ./texlive.js o /texlive.js que exponga PDFTeX, o usa un paquete wasm (pdftex-wasm) disponible desde CDN.",
+          '- Alternativa: exporta el .tex y compílalo externamente.'
+        ].join('\n');
+        alert(msg + '\n\nDetalles técnicos: ' + e.message);
         return;
       }
 
