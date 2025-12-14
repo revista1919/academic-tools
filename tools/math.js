@@ -6,25 +6,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     const Tesseract = window.Tesseract;
     const ComputeEngine = window.ComputeEngine;
 
-    // ==================== INICIALIZACIÓN DE TESSERACT (OCR) ====================
+    // ==================== INICIALIZACIÓN DE TESSERACT (OCR) - CORREGIDO PARA V5 ====================
     let worker = null;
     try {
-        worker = await Tesseract.createWorker({
-            workerPath: 'https://unpkg.com/tesseract.js@v5/dist/worker.min.js',
-            corePath: 'https://unpkg.com/tesseract.js-core@v5/tesseract-core.wasm.js',
+        // En v5, createWorker toma lang como primer arg, OEM como segundo, options como tercero
+        // No se necesita loadLanguage ni initialize
+        worker = await Tesseract.createWorker('eng+equ', 1, {
             langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+            corePath: 'https://unpkg.com/tesseract.js-core@v5/tesseract-core.wasm.js',
+            workerPath: 'https://unpkg.com/tesseract.js@v5/dist/worker.min.js'
         });
-        await worker.load();
-        await worker.loadLanguage('eng+equ');
-        await worker.initialize('eng+equ');
         window.tesseractWorker = worker;
-        console.log('Tesseract inicializado correctamente con soporte para ecuaciones');
+        console.log('Tesseract inicializado correctamente con soporte para ecuaciones (eng+equ)');
     } catch (e) {
         console.warn('Tesseract no disponible (OCR deshabilitado):', e);
         window.tesseractWorker = null;
     }
 
-    // ==================== OBJETO DE SÍMBOLOS ====================
+    // ==================== OBJETO DE SÍMBOLOS COMPLETO ====================
     const symbols = {
         basic: {
             '\\frac{a}{b}': 'Fracción',
@@ -69,71 +68,324 @@ document.addEventListener('DOMContentLoaded', async () => {
             '\\partial': 'Derivada parcial'
         },
         greek: {
-            '\\Alpha': 'Alpha mayúscula', '\\alpha': 'Alpha minúscula',
-            '\\Beta': 'Beta mayúscula', '\\beta': 'Beta minúscula',
-            '\\Gamma': 'Gamma mayúscula', '\\gamma': 'Gamma minúscula',
-            '\\Delta': 'Delta mayúscula', '\\delta': 'Delta minúscula',
-            '\\Epsilon': 'Epsilon mayúscula', '\\epsilon': 'Epsilon minúscula',
+            '\\Alpha': 'Alpha mayúscula',
+            '\\alpha': 'Alpha minúscula',
+            '\\Beta': 'Beta mayúscula',
+            '\\beta': 'Beta minúscula',
+            '\\Gamma': 'Gamma mayúscula',
+            '\\gamma': 'Gamma minúscula',
+            '\\Delta': 'Delta mayúscula',
+            '\\delta': 'Delta minúscula',
+            '\\Epsilon': 'Epsilon mayúscula',
+            '\\epsilon': 'Epsilon minúscula',
             '\\varepsilon': 'Epsilon variante',
-            '\\Zeta': 'Zeta mayúscula', '\\zeta': 'Zeta minúscula',
-            '\\Eta': 'Eta mayúscula', '\\eta': 'Eta minúscula',
-            '\\Theta': 'Theta mayúscula', '\\theta': 'Theta minúscula',
+            '\\Zeta': 'Zeta mayúscula',
+            '\\zeta': 'Zeta minúscula',
+            '\\Eta': 'Eta mayúscula',
+            '\\eta': 'Eta minúscula',
+            '\\Theta': 'Theta mayúscula',
+            '\\theta': 'Theta minúscula',
             '\\vartheta': 'Theta variante',
-            '\\Iota': 'Iota mayúscula', '\\iota': 'Iota minúscula',
-            '\\Kappa': 'Kappa mayúscula', '\\kappa': 'Kappa minúscula',
+            '\\Iota': 'Iota mayúscula',
+            '\\iota': 'Iota minúscula',
+            '\\Kappa': 'Kappa mayúscula',
+            '\\kappa': 'Kappa minúscula',
             '\\varkappa': 'Kappa variante',
-            '\\Lambda': 'Lambda mayúscula', '\\lambda': 'Lambda minúscula',
-            '\\Mu': 'Mu mayúscula', '\\mu': 'Mu minúscula',
-            '\\Nu': 'Nu mayúscula', '\\nu': 'Nu minúscula',
-            '\\Xi': 'Xi mayúscula', '\\xi': 'Xi minúscula',
-            '\\Omicron': 'Omicron mayúscula', '\\omicron': 'Omicron minúscula',
-            '\\Pi': 'Pi mayúscula', '\\pi': 'Pi minúscula',
+            '\\Lambda': 'Lambda mayúscula',
+            '\\lambda': 'Lambda minúscula',
+            '\\Mu': 'Mu mayúscula',
+            '\\mu': 'Mu minúscula',
+            '\\Nu': 'Nu mayúscula',
+            '\\nu': 'Nu minúscula',
+            '\\Xi': 'Xi mayúscula',
+            '\\xi': 'Xi minúscula',
+            '\\Omicron': 'Omicron mayúscula',
+            '\\omicron': 'Omicron minúscula',
+            '\\Pi': 'Pi mayúscula',
+            '\\pi': 'Pi minúscula',
             '\\varpi': 'Pi variante',
-            '\\Rho': 'Rho mayúscula', '\\rho': 'Rho minúscula',
+            '\\Rho': 'Rho mayúscula',
+            '\\rho': 'Rho minúscula',
             '\\varrho': 'Rho variante',
-            '\\Sigma': 'Sigma mayúscula', '\\sigma': 'Sigma minúscula',
+            '\\Sigma': 'Sigma mayúscula',
+            '\\sigma': 'Sigma minúscula',
             '\\varsigma': 'Sigma variante',
-            '\\Tau': 'Tau mayúscula', '\\tau': 'Tau minúscula',
-            '\\Upsilon': 'Upsilon mayúscula', '\\upsilon': 'Upsilon minúscula',
-            '\\Phi': 'Phi mayúscula', '\\phi': 'Phi minúscula',
+            '\\Tau': 'Tau mayúscula',
+            '\\tau': 'Tau minúscula',
+            '\\Upsilon': 'Upsilon mayúscula',
+            '\\upsilon': 'Upsilon minúscula',
+            '\\Phi': 'Phi mayúscula',
+            '\\phi': 'Phi minúscula',
             '\\varphi': 'Phi variante',
-            '\\Chi': 'Chi mayúscula', '\\chi': 'Chi minúscula',
-            '\\Psi': 'Psi mayúscula', '\\psi': 'Psi minúscula',
-            '\\Omega': 'Omega mayúscula', '\\omega': 'Omega minúscula'
+            '\\Chi': 'Chi mayúscula',
+            '\\chi': 'Chi minúscula',
+            '\\Psi': 'Psi mayúscula',
+            '\\psi': 'Psi minúscula',
+            '\\Omega': 'Omega mayúscula',
+            '\\omega': 'Omega minúscula',
+            '\\Digamma': 'Digamma mayúscula',
+            '\\digamma': 'Digamma minúscula'
         },
-        operators: { '+': 'Plus', '-': 'Minus', '!': 'Factorial', '\\#': 'Primorial', '\\neg': 'Negación lógica' },
+        operators: {
+            '+': 'Plus',
+            '-': 'Minus',
+            '!': 'Factorial',
+            '\\#': 'Primorial',
+            '\\neg': 'Negación lógica'
+        },
         relations: {
-            '<': 'Menor que', '>': 'Mayor que', '\\leq': 'Menor o igual', '\\geq': 'Mayor o igual',
-            '=': 'Igual', '\\neq': 'No igual', '\\equiv': 'Equivalente', '\\approx': 'Aproximadamente',
-            '\\cong': 'Congruente', '\\sim': 'Similar', '\\propto': 'Proporcional', '\\parallel': 'Paralelo',
-            '\\perp': 'Perpendicular', '\\in': 'Miembro de', '\\ni': 'Posee miembro'
+            '<': 'Menor que',
+            '>': 'Mayor que',
+            '\\nless': 'No menor que',
+            '\\ngtr': 'No mayor que',
+            '\\leq': 'Menor o igual',
+            '\\geq': 'Mayor o igual',
+            '\\leqslant': 'Menor o igual (variante)',
+            '\\geqslant': 'Mayor o igual (variante)',
+            '\\nleq': 'Ni menor ni igual',
+            '\\ngeq': 'Ni mayor ni igual',
+            '\\nleqslant': 'Ni menor ni igual (variante)',
+            '\\ngeqslant': 'Ni mayor ni igual (variante)',
+            '\\prec': 'Precede',
+            '\\succ': 'Sucede',
+            '\\nprec': 'No precede',
+            '\\nsucc': 'No sucede',
+            '\\preceq': 'Precede o igual',
+            '\\succeq': 'Sucede o igual',
+            '\\npreceq': 'Ni precede ni igual',
+            '\\nsucceq': 'Ni sucede ni igual',
+            '\\ll': 'Mucho menor que',
+            '\\gg': 'Mucho mayor que',
+            '\\lll': 'Triple menor que',
+            '\\ggg': 'Triple mayor que',
+            '\\subset': 'Subconjunto propio',
+            '\\supset': 'Superconjunto propio',
+            '\\not\\subset': 'No subconjunto propio',
+            '\\not\\supset': 'No superconjunto propio',
+            '\\subseteq': 'Subconjunto',
+            '\\supseteq': 'Superconjunto',
+            '\\nsubseteq': 'No subconjunto',
+            '\\nsupseteq': 'No superconjunto',
+            '\\sqsubset': 'Subconjunto cuadrado',
+            '\\sqsupset': 'Superconjunto cuadrado',
+            '\\sqsubseteq': 'Subconjunto cuadrado o igual',
+            '\\sqsupseteq': 'Superconjunto cuadrado o igual',
+            '=': 'Igual',
+            '\\doteq': 'Igual con punto',
+            '\\equiv': 'Equivalente',
+            '\\approx': 'Aproximadamente',
+            '\\cong': 'Congruente',
+            '\\simeq': 'Similar o igual',
+            '\\sim': 'Similar',
+            '\\propto': 'Proporcional',
+            '\\neq': 'No igual',
+            '\\ne': 'No igual (variante)',
+            '\\parallel': 'Paralelo',
+            '\\nparallel': 'No paralelo',
+            '\\asymp': 'Asintótico',
+            '\\bowtie': 'Bowtie',
+            '\\vdash': 'Se convierte en',
+            '\\dashv': 'Dashv',
+            '\\in': 'Miembro de',
+            '\\ni': 'Posee miembro',
+            '\\smile': 'Smile',
+            '\\frown': 'Frown',
+            '\\models': 'Modela',
+            '\\notin': 'No miembro de',
+            '\\perp': 'Perpendicular',
+            '\\mid': 'Divide'
         },
         negated_relations: {
-            '\\neq': 'No igual', '\\notin': 'No miembro de', '\\nless': 'No menor que', '\\ngtr': 'No mayor que',
-            '\\nleq': 'No menor o igual', '\\ngeq': 'No mayor o igual', '\\nsim': 'No similar', '\\ncong': 'No congruente'
+            '\\neq': 'No igual',
+            '\\notin': 'No miembro de',
+            '\\nless': 'No menor que',
+            '\\ngtr': 'No mayor que',
+            '\\nleq': 'No menor o igual',
+            '\\ngeq': 'No mayor o igual',
+            '\\nleqslant': 'Ni menor ni igual (variante)',
+            '\\ngeqslant': 'Ni mayor ni igual (variante)',
+            '\\nleqq': 'No menor o igual (variante)',
+            '\\ngeqq': 'No mayor o igual (variante)',
+            '\\lneq': 'Menor pero no igual',
+            '\\gneq': 'Mayor pero no igual',
+            '\\lneqq': 'Menor pero no igual (variante)',
+            '\\gneqq': 'Mayor pero no igual (variante)',
+            '\\lvertneqq': 'Menor con barra vertical pero no igual',
+            '\\gvertneqq': 'Mayor con barra vertical pero no igual',
+            '\\lnsim': 'Menor no similar',
+            '\\gnsim': 'Mayor no similar',
+            '\\lnapprox': 'Menor no aproximado',
+            '\\gnapprox': 'Mayor no aproximado',
+            '\\nprec': 'No precede',
+            '\\nsucc': 'No sucede',
+            '\\npreceq': 'Ni precede ni igual',
+            '\\nsucceq': 'Ni sucede ni igual',
+            '\\precneqq': 'Precede pero no igual',
+            '\\succneqq': 'Sucede pero no igual',
+            '\\precnsim': 'Precede no similar',
+            '\\succnsim': 'Sucede no similar',
+            '\\precnapprox': 'Precede no aproximado',
+            '\\succnapprox': 'Sucede no aproximado',
+            '\\nsim': 'No similar',
+            '\\ncong': 'No congruente',
+            '\\nshortmid': 'No divide (corto)',
+            '\\nshortparallel': 'No paralelo (corto)',
+            '\\nmid': 'No divide',
+            '\\nparallel': 'No paralelo',
+            '\\nvdash': 'No se convierte en',
+            '\\nvDash': 'No modela',
+            '\\nVdash': 'No dashv',
+            '\\nVDash': 'No dash vertical',
+            '\\ntriangleleft': 'No triángulo izquierdo',
+            '\\ntriangleright': 'No triángulo derecho',
+            '\\ntrianglelefteq': 'No triángulo izquierdo igual',
+            '\\ntrianglerighteq': 'No triángulo derecho igual',
+            '\\nsubseteq': 'No subconjunto',
+            '\\nsupseteq': 'No superconjunto',
+            '\\nsubseteqq': 'No subconjunto (variante)',
+            '\\nsupseteqq': 'No superconjunto (variante)',
+            '\\subsetneq': 'Subconjunto propio (no igual)',
+            '\\supsetneq': 'Superconjunto propio (no igual)',
+            '\\varsubsetneq': 'Subconjunto propio variable (no igual)',
+            '\\varsupsetneq': 'Superconjunto propio variable (no igual)',
+            '\\subsetneqq': 'Subconjunto propio no igual (variante)',
+            '\\supsetneqq': 'Superconjunto propio no igual (variante)',
+            '\\varsubsetneqq': 'Subconjunto propio variable no igual (variante)',
+            '\\varsupsetneqq': 'Superconjunto propio variable no igual (variante)'
         },
         sets_logic: {
-            '\\emptyset': 'Conjunto vacío', '\\varnothing': 'Conjunto vacío (variante)',
-            '\\mathbb{N}': 'Naturales', '\\mathbb{Z}': 'Enteros', '\\mathbb{Q}': 'Racionales',
-            '\\mathbb{R}': 'Reales', '\\mathbb{C}': 'Complejos',
-            '\\subset': 'Subconjunto propio', '\\subseteq': 'Subconjunto', '\\supset': 'Superconjunto propio',
-            '\\supseteq': 'Superconjunto', '\\cup': 'Unión', '\\cap': 'Intersección',
-            '\\exists': 'Existe', '\\forall': 'Para todo', '\\neg': 'Negación', '\\lor': 'O lógico', '\\land': 'Y lógico'
+            '\\emptyset': 'Conjunto vacío',
+            '\\varnothing': 'Conjunto vacío (variante)',
+            '\\mathbb{N}': 'Números naturales',
+            '\\mathbb{Z}': 'Enteros',
+            '\\mathbb{Q}': 'Racionales',
+            '\\mathbb{A}': 'Algebraicos',
+            '\\mathbb{R}': 'Reales',
+            '\\mathbb{C}': 'Complejos',
+            '\\mathbb{H}': 'Cuaterniones',
+            '\\mathbb{O}': 'Octoniones',
+            '\\mathbb{S}': 'Sedeniones',
+            '\\in': 'Miembro de',
+            '\\notin': 'No miembro de',
+            '\\ni': 'Posee',
+            '\\subset': 'Subconjunto propio',
+            '\\subseteq': 'Subconjunto',
+            '\\supset': 'Superconjunto propio',
+            '\\supseteq': 'Superconjunto',
+            '\\cup': 'Unión',
+            '\\cap': 'Intersección',
+            '\\setminus': 'Diferencia',
+            '\\exists': 'Existe',
+            '\\exists!': 'Existe único',
+            '\\nexists': 'No existe',
+            '\\forall': 'Para todo',
+            '\\neg': 'No lógico',
+            '\\lor': 'O lógico',
+            '\\land': 'Y lógico',
+            '\\Longrightarrow': 'Implica',
+            '\\implies': 'Implica (variante)',
+            '\\Rightarrow': 'Implica (derecha)',
+            '\\Longleftarrow': 'Es implicado por',
+            '\\Leftarrow': 'Es implicado por (izquierda)',
+            '\\iff': 'Si y solo si',
+            '\\Leftrightarrow': 'Equivalente',
+            '\\top': 'Top',
+            '\\bot': 'Bottom'
         },
         geometry: {
-            '\\overline{AB}': 'Segmento', '\\overrightarrow{AB}': 'Rayo', '\\angle': 'Ángulo',
-            '\\triangle': 'Triángulo', '\\square': 'Cuadrado', '\\cong': 'Congruente', '\\sim': 'Similar'
+            '\\overline{AB}': 'Segmento',
+            '\\overrightarrow{AB}': 'Rayo',
+            '\\angle': 'Ángulo',
+            '\\measuredangle': 'Ángulo medido',
+            '\\triangle': 'Triángulo',
+            '\\square': 'Cuadrado',
+            '\\cong': 'Congruente',
+            '\\ncong': 'No congruente',
+            '\\sim': 'Similar',
+            '\\nsim': 'No similar',
+            '\\parallel': 'Paralelo',
+            '\\perp': 'Perpendicular'
         },
         arrows: {
-            '\\leftarrow': 'Izquierda', '\\rightarrow': 'Derecha', '\\Leftarrow': 'Doble izquierda',
-            '\\Rightarrow': 'Doble derecha', '\\leftrightarrow': 'Bidireccional', '\\Leftrightarrow': 'Equivalente'
+            '\\leftarrow': 'Flecha izquierda',
+            '\\Leftarrow': 'Flecha doble izquierda',
+            '\\rightarrow': 'Flecha derecha',
+            '\\Rightarrow': 'Flecha doble derecha',
+            '\\leftrightarrow': 'Flecha izquierda-derecha',
+            '\\rightleftharpoons': 'Equilibrio',
+            '\\uparrow': 'Flecha arriba',
+            '\\downarrow': 'Flecha abajo',
+            '\\Uparrow': 'Flecha doble arriba',
+            '\\Downarrow': 'Flecha doble abajo',
+            '\\Leftrightarrow': 'Flecha doble izquierda-derecha',
+            '\\Updownarrow': 'Flecha doble arriba-abajo',
+            '\\mapsto': 'Mapea a',
+            '\\longmapsto': 'Mapea largo a',
+            '\\nearrow': 'Flecha noreste',
+            '\\searrow': 'Flecha sureste',
+            '\\swarrow': 'Flecha suroeste',
+            '\\nwarrow': 'Flecha noroeste',
+            '\\leftharpoonup': 'Arpón izquierda arriba',
+            '\\leftharpoondown': 'Arpón izquierda abajo',
+            '\\rightharpoonup': 'Arpón derecha arriba',
+            '\\rightharpoondown': 'Arpón derecha abajo',
+            '\\ncurvearrowdownup': 'No flecha curva abajo-arriba',
+            '\\nlhooknwarrow': 'No hook izquierda noroeste',
+            '\\downharpoonccw': 'Arpón abajo antihorario',
+            '\\downharpooncw': 'Arpón abajo horario',
+            '\\leftharpoonccw': 'Arpón izquierda antihorario',
+            '\\leftharpooncw': 'Arpón izquierda horario',
+            '\\rightharpoonccw': 'Arpón derecha antihorario',
+            '\\rightharpooncw': 'Arpón derecha horario',
+            '\\upharpoonccw': 'Arpón arriba antihorario',
+            '\\upharpooncw': 'Arpón arriba horario'
         },
         miscellaneous: {
-            '\\infty': 'Infinito', '\\partial': 'Parcial', '\\nabla': 'Nabla', '\\Re': 'Parte real',
-            '\\Im': 'Parte imaginaria', '\\wp': 'Weierstrass p', '\\blacksquare': 'Cuadrado negro'
+            '\\infty': 'Infinito',
+            '\\forall': 'Para todo',
+            '\\Re': 'Parte real',
+            '\\Im': 'Parte imaginaria',
+            '\\nabla': 'Nabla',
+            '\\exists': 'Existe',
+            '\\nexists': 'No existe',
+            '\\partial': 'Parcial',
+            '\\emptyset': 'Vacío',
+            '\\varnothing': 'Vacío variante',
+            '\\wp': 'Weierstrass p',
+            '\\complement': 'Complemento',
+            '\\neg': 'Negación',
+            '\\cdots': 'Puntos centrados',
+            '\\square': 'Cuadrado',
+            '\\surd': 'Raíz',
+            '\\blacksquare': 'Cuadrado negro',
+            '\\triangle': 'Triángulo',
+            '\\Box': 'Caja',
+            '\\boxtimes': 'Caja con x',
+            '\\perp': 'Perpendicular',
+            '\\simeq': 'Similar igual',
+            '\\approx': 'Aproximado',
+            '\\equiv': 'Equivalente',
+            '\\cong': 'Congruente'
         },
         accents_diacritics: {
-            '\\^{}': 'Circunflejo', '\\~{}': 'Tilde', '\\.{}': 'Punto', '\\u{}': 'Breve', '\\v{}': 'Carón'
+            '\\\"{}': 'Diéresis',
+            '\\\'{}': 'Agudo',
+            '\\\~{}': 'Tilde',
+            '\\u{}': 'Breve',
+            '\\.{}': 'Punto',
+            '\\b{}': 'Barra debajo',
+            '\\c{}': 'Cedilla',
+            '\\^{}': 'Circunflejo',
+            '\\k{}': 'Ogonek',
+            '\\v{}': 'Carón',
+            '\\d{}': 'Punto debajo',
+            '\\r{}': 'Anillo',
+            '\\textcircled{}': 'Circulado',
+            '\\textacutemacron{}': 'Agudo + macrón',
+            '\\textbrevemacron{}': 'Breve + macrón',
+            '\\textcircumacute{}': 'Circunflejo + agudo',
+            '\\overarc{}': 'Arco sobre',
+            '\\underarc{}': 'Arco debajo'
         }
     };
 
@@ -150,10 +402,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     function populateSymbols(category) {
         if (!symbolSelect) return;
         symbolSelect.innerHTML = '<option value="" disabled selected>Selecciona símbolo</option>';
-        Object.keys(symbols[category] || {}).forEach(key => {
+        const catSymbols = symbols[category] || {};
+        Object.keys(catSymbols).forEach(key => {
             const opt = document.createElement('option');
             opt.value = key;
-            opt.textContent = symbols[category][key];
+            opt.textContent = catSymbols[key];
             symbolSelect.appendChild(opt);
         });
     }
@@ -183,22 +436,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (mathField) {
         mathField.addEventListener('input', updateLatexPreview);
-        updateLatexPreview();
+        updateLatexPreview(); // Inicial
     }
 
     if (insertSymbol && mathField && symbolSelect) {
         insertSymbol.addEventListener('click', () => {
-            if (symbolSelect.value) {
-                mathField.insert(symbolSelect.value);
+            const sym = symbolSelect.value;
+            if (sym) {
+                mathField.insert(sym);
                 mathField.focus();
+            } else {
+                alert('Selecciona un símbolo');
             }
         });
     }
 
-    if (insertTemplate && mathField) {
+    if (insertTemplate && mathField && templateSelect) {
         insertTemplate.addEventListener('click', () => {
-            if (templateSelect.value) {
-                mathField.insert(templateSelect.value);
+            const temp = templateSelect.value;
+            if (temp) {
+                mathField.insert(temp);
                 mathField.focus();
             }
         });
@@ -206,9 +463,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (copyLatex && mathField) {
         copyLatex.addEventListener('click', () => {
-            navigator.clipboard.writeText(mathField.value)
-                .then(() => alert('¡LaTeX copiado al portapapeles!'))
-                .catch(() => alert('Error al copiar al portapapeles'));
+            const latex = mathField.value;
+            if (!latex.trim()) {
+                alert('No hay LaTeX para copiar');
+                return;
+            }
+            navigator.clipboard.writeText(latex).then(() => {
+                alert('¡LaTeX copiado al portapapeles!');
+            }).catch(err => {
+                console.error('Error al copiar:', err);
+                alert('Error al copiar');
+            });
         });
     }
 
@@ -219,41 +484,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     const colorSelect = document.getElementById('color-select');
     const sizeSelect = document.getElementById('size-select');
 
-    if (formulaButton && mathField && formulaCanvas && window.html2canvas) {
+    if (formulaButton && mathField && formulaCanvas && window.html2canvas && katex) {
         formulaButton.addEventListener('click', async () => {
             const latex = mathField.value.trim();
             if (!latex) {
-                alert('No hay fórmula para convertir');
+                alert('Escribe una fórmula primero');
                 return;
             }
             try {
                 const tempDiv = document.createElement('div');
-                tempDiv.style.position = 'absolute';
-                tempDiv.style.left = '-9999px';
-                tempDiv.style.padding = '20px';
-                tempDiv.style.backgroundColor = 'transparent';
+                tempDiv.style.cssText = 'position: absolute; left: -9999px; padding: 20px; background: transparent;';
                 document.body.appendChild(tempDiv);
-
-                katex.render(latex, tempDiv, {
-                    throwOnError: true,
-                    displayMode: true,
-                    output: 'html'
-                });
-
-                const katexEl = tempDiv.querySelector('.katex');
-                const canvas = await html2canvas(katexEl, { scale: 2, backgroundColor: null });
+                katex.render(latex, tempDiv, { throwOnError: true, displayMode: true });
+                const katexEl = tempDiv.firstElementChild; // .katex
+                if (!katexEl) throw new Error('No se generó KaTeX');
+                const canvas = await html2canvas(katexEl, { scale: 2, backgroundColor: null, useCORS: true });
                 formulaCanvas.width = canvas.width;
                 formulaCanvas.height = canvas.height;
-                formulaCanvas.getContext('2d').drawImage(canvas, 0, 0);
-
-                const url = canvas.toDataURL('image/png');
-                downloadImage.href = url;
+                const ctx = formulaCanvas.getContext('2d');
+                ctx.drawImage(canvas, 0, 0);
+                const dataUrl = formulaCanvas.toDataURL('image/png');
+                downloadImage.href = dataUrl;
                 downloadImage.download = 'formula.png';
-                downloadImage.style.display = 'block';
-
+                downloadImage.textContent = 'Descargar PNG';
+                downloadImage.style.display = 'inline-block';
                 document.body.removeChild(tempDiv);
             } catch (e) {
-                alert('Error generando imagen: ' + e.message);
+                console.error(e);
+                alert(`Error generando imagen: ${e.message}`);
             }
         });
     }
@@ -265,40 +523,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ocrPreview = document.getElementById('ocr-preview');
     const ocrImagePreview = document.getElementById('ocr-image-preview');
     const copyOcr = document.getElementById('copy-ocr');
-    const importOcr = document.getElementById('import-ocr-to-editor');
+    const importOcrToEditor = document.getElementById('import-ocr-to-editor');
 
-    if (ocrInput) {
-        ocrInput.addEventListener('change', () => {
-            const file = ocrInput.files[0];
-            if (file && ocrImagePreview) {
+    if (ocrInput && ocrImagePreview) {
+        ocrInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
                 ocrImagePreview.src = URL.createObjectURL(file);
                 ocrImagePreview.style.display = 'block';
+                ocrImagePreview.alt = 'Vista previa de imagen';
             }
         });
     }
 
-    if (ocrButton && worker) {
+    if (ocrButton && ocrOutput && worker) {
         ocrButton.addEventListener('click', async () => {
-            if (!ocrInput?.files[0]) {
+            const file = ocrInput?.files[0];
+            if (!file) {
                 alert('Selecciona una imagen primero');
                 return;
             }
-            if (!ocrOutput) return;
             ocrOutput.textContent = 'Procesando OCR...';
+            ocrPreview.innerHTML = '';
             try {
-                const { data: { text } } = await worker.recognize(ocrInput.files[0]);
-                const cleaned = text.trim().replace(/\r?\n/g, ' ');
-                ocrOutput.textContent = cleaned;
-
-                if (ocrPreview) {
+                const { data: { text } } = await worker.recognize(file);
+                const cleanedText = text.trim().replace(/\s+/g, ' ');
+                ocrOutput.textContent = cleanedText;
+                if (cleanedText) {
                     try {
-                        katex.render(cleaned, ocrPreview, { throwOnError: false, displayMode: true });
-                    } catch {
-                        ocrPreview.innerHTML = '<span style="color:orange;">No se pudo renderizar como LaTeX (edita manualmente)</span>';
+                        katex.render(cleanedText, ocrPreview, { throwOnError: false, displayMode: true });
+                    } catch (renderErr) {
+                        ocrPreview.innerHTML = `<span style="color:orange;">Texto extraído: ${cleanedText}<br>No se pudo renderizar como LaTeX (edita manualmente)</span>`;
                     }
                 }
             } catch (err) {
-                ocrOutput.textContent = 'Error OCR: ' + err.message;
+                console.error('OCR error:', err);
+                ocrOutput.textContent = `Error en OCR: ${err.message}`;
             }
         });
     } else if (ocrButton) {
@@ -308,13 +568,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (copyOcr && ocrOutput) {
         copyOcr.addEventListener('click', () => {
-            navigator.clipboard.writeText(ocrOutput.textContent).then(() => alert('Texto OCR copiado'));
+            const text = ocrOutput.textContent;
+            if (!text || text.startsWith('Error') || text === 'Procesando OCR...') {
+                alert('No hay texto válido para copiar');
+                return;
+            }
+            navigator.clipboard.writeText(text).then(() => alert('Texto OCR copiado'));
         });
     }
 
-    if (importOcr && mathField && ocrOutput) {
-        importOcr.addEventListener('click', () => {
-            mathField.value = ocrOutput.textContent;
+    if (importOcrToEditor && mathField && ocrOutput) {
+        importOcrToEditor.addEventListener('click', () => {
+            const text = ocrOutput.textContent;
+            if (!text || text.startsWith('Error')) {
+                alert('No hay texto válido para importar');
+                return;
+            }
+            mathField.value = text;
             mathField.focus();
             updateLatexPreview();
         });
@@ -329,46 +599,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     const unitResult = document.getElementById('unit-result');
 
     const unitExamples = {
-        length: ['m', 'cm', 'km', 'mm', 'ft', 'in', 'mile'],
-        mass: ['kg', 'g', 'mg', 'lb', 'oz', 'ton'],
+        length: ['m', 'cm', 'km', 'ft', 'in', 'mile'],
+        mass: ['kg', 'g', 'lb', 'oz'],
         temperature: ['celsius', 'fahrenheit', 'kelvin'],
-        energy: ['J', 'cal', 'kcal', 'kWh', 'eV']
+        energy: ['joule', 'calorie', 'kwh']
     };
 
-    function populateUnits(cat) {
-        const units = unitExamples[cat] || [];
+    function populateUnits(category) {
+        const units = unitExamples[category] || [];
         [unitFrom, unitTo].forEach(select => {
-            if (!select) return;
-            select.innerHTML = '';
-            units.forEach(u => {
-                const opt = document.createElement('option');
-                opt.value = u;
-                opt.textContent = u;
-                select.appendChild(opt);
-            });
+            if (select) {
+                select.innerHTML = '';
+                units.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u;
+                    opt.textContent = u.toUpperCase();
+                    select.appendChild(opt);
+                });
+            }
         });
     }
 
     if (unitCategory) {
         unitCategory.addEventListener('change', () => populateUnits(unitCategory.value));
-        populateUnits(unitCategory.value || 'length');
+        populateUnits('length'); // Default
     }
 
-    if (convertButton && math) {
+    if (convertButton && unitResult && math) {
         convertButton.addEventListener('click', () => {
-            if (!unitResult) return;
-            const val = unitValue?.value.trim();
+            const valueStr = unitValue?.value.trim();
             const from = unitFrom?.value;
             const to = unitTo?.value;
-            if (!val || !from || !to) {
-                unitResult.textContent = 'Ingresa valor y unidades';
+            if (!valueStr || !from || !to) {
+                unitResult.textContent = 'Ingresa valor y selecciona unidades';
                 return;
             }
             try {
-                const result = math.evaluate(`${val} ${from} to ${to}`);
-                unitResult.textContent = result.toString();
+                const result = math.evaluate(`${valueStr} ${from} to ${to}`);
+                unitResult.innerHTML = `<strong>${result.toPrecision(10)}</strong> ${to}`;
             } catch (e) {
-                unitResult.textContent = 'Error: ' + e.message;
+                unitResult.textContent = `Error: ${e.message}`;
             }
         });
     }
@@ -378,24 +648,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const solveButton = document.getElementById('solve-equation');
     const equationResult = document.getElementById('equation-result');
 
-    if (solveButton && math) {
+    if (solveButton && equationResult && math) {
         solveButton.addEventListener('click', () => {
-            if (!equationResult) return;
             const expr = equationInput?.value.trim();
             if (!expr) {
-                equationResult.textContent = 'Escribe una expresión';
+                equationResult.textContent = 'Escribe una expresión matemática (ej: 2+2, sin(pi))';
                 return;
             }
             try {
                 const result = math.evaluate(expr);
-                equationResult.textContent = result.toString();
+                equationResult.innerHTML = `<strong>${result.toString()}</strong>`;
             } catch (e) {
-                equationResult.textContent = 'Error: ' + e.message;
+                equationResult.textContent = `Error: ${e.message}`;
             }
         });
     }
 
-    // ==================== GRAFICADOR DE FUNCIONES (CORREGIDO Y ROBUSTO) ====================
+    // ==================== GRAFICADOR DE FUNCIONES ====================
     const functionField = document.getElementById('function-field');
     const xMinInput = document.getElementById('x-min');
     const xMaxInput = document.getElementById('x-max');
@@ -405,15 +674,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let chartInstance = null;
 
-    if (plotButton && functionField && plotCanvas && ComputeEngine) {
+    if (plotButton && functionField && plotCanvas && ComputeEngine && Chart) {
+        // Estilos del canvas
+        plotCanvas.style.width = '100%';
+        plotCanvas.style.height = '400px';
+        plotCanvas.style.border = '1px solid #ccc';
+        plotCanvas.style.backgroundColor = '#fff';
+
         plotButton.addEventListener('click', () => {
-            const raw = functionField.value.trim();
-            if (!raw) {
-                alert('Ingresa al menos una función (separadas por ;)');
+            const rawFuncs = functionField.value.trim();
+            if (!rawFuncs) {
+                alert('Ingresa al menos una función (ej: sin(x); x^2)');
                 return;
             }
+            const functions = rawFuncs.split(';').map(f => f.trim()).filter(f => f);
+            if (functions.length === 0) return;
 
-            const functions = raw.split(';').map(f => f.trim()).filter(f => f);
             const xMin = parseFloat(xMinInput?.value) || -10;
             const xMax = parseFloat(xMaxInput?.value) || 10;
             const steps = Math.max(50, parseInt(stepsInput?.value) || 200);
@@ -424,17 +700,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             const step = (xMax - xMin) / steps;
-            const xValues = Array.from({ length: steps + 1 }, (_, i) => xMin + i * step);
+            const xValues = [];
+            for (let i = 0; i <= steps; i++) {
+                xValues.push(xMin + i * step);
+            }
 
-            const ce = new ComputeEngine.ComputeEngine();
+            const ce = new ComputeEngine.ComputeEngine({ numericPrecision: 20 });
             const datasets = [];
             const colors = ['#007bff', '#dc3545', '#28a745', '#ffc107', '#6f42c1', '#fd7e14', '#20c997'];
 
             functions.forEach((func, idx) => {
                 let expr;
                 try {
-                    expr = ce.parse(func);
+                    expr = ce.parse(func, { canonical: false });
                 } catch (e) {
+                    console.warn(`Error parseando "${func}":`, e);
                     alert(`Error al parsear "${func}": ${e.message}`);
                     return;
                 }
@@ -443,60 +723,74 @@ document.addEventListener('DOMContentLoaded', async () => {
                     try {
                         const val = expr.evaluate({ x: ce.number(x) });
                         const num = val.numericValue;
-                        return isFinite(num) ? num : null;
+                        return isFinite(num) && !isNaN(num) ? num : null;
                     } catch {
                         return null;
                     }
                 });
 
-                datasets.push({
-                    label: func,
-                    data: yValues,
-                    borderColor: colors[idx % colors.length],
-                    backgroundColor: colors[idx % colors.length] + '40',
-                    fill: false,
-                    tension: 0.1,
-                    pointRadius: 0
-                });
+                if (yValues.some(y => y !== null)) {
+                    datasets.push({
+                        label: func || `f${idx + 1}`,
+                        data: yValues.map((y, i) => ({ x: xValues[i], y })),
+                        borderColor: colors[idx % colors.length],
+                        backgroundColor: colors[idx % colors.length] + '20',
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        showLine: true
+                    });
+                }
             });
 
             if (datasets.length === 0) {
-                alert('No se pudo procesar ninguna función válida');
+                alert('No se pudieron graficar funciones válidas');
                 return;
             }
 
-            if (chartInstance) chartInstance.destroy();
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
 
-            chartInstance = new Chart(plotCanvas, {
+            const ctx = plotCanvas.getContext('2d');
+            chartInstance = new Chart(ctx, {
                 type: 'line',
-                data: { labels: xValues, datasets },
+                data: { datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     scales: {
-                        x: { type: 'linear', title: { display: true, text: 'x' }, min: xMin, max: xMax },
-                        y: { title: { display: true, text: 'y' } }
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: { display: true, text: 'x' },
+                            min: xMin,
+                            max: xMax
+                        },
+                        y: {
+                            title: { display: true, text: 'y' }
+                        }
                     },
                     plugins: {
-                        title: { display: true, text: 'Gráfica de funciones' },
-                        legend: { display: true },
+                        title: { display: true, text: 'Gráfica de Funciones' },
+                        legend: { display: true, position: 'top' },
                         zoom: {
-                            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' },
+                            zoom: {
+                                wheel: { enabled: true },
+                                pinch: { enabled: true },
+                                mode: 'xy'
+                            },
                             pan: { enabled: true, mode: 'xy' }
                         }
                     }
-                }
+                },
+                plugins: [ChartZoom] // Asumiendo que chartjs-plugin-zoom está registrado globalmente
             });
-
-            // Estilo visual del canvas
-            plotCanvas.style.border = '1px solid #ccc';
-            plotCanvas.style.backgroundColor = '#fff';
         });
 
-        // Placeholder para el campo de funciones
         if (functionField) {
-            functionField.placeholder = "Ej: sin(x); x^2; cos(x); \\sqrt{x}";
+            functionField.setAttribute('placeholder', 'Ej: sin(x); x^2; cos(x)');
         }
     }
 
