@@ -9,11 +9,11 @@
     <meta name="keywords" content="unir pdf académico, herramientas pdf gratis, herramientas para papers, utilidades académicas online">
     <link rel="stylesheet" href="styles.css">
     <style>
-        .sortable { display: flex; flex-wrap: wrap; justify-content: center; }
-        .merge-item, .reorder-item, .edit-item { margin: 10px; border: 1px solid #ccc; padding: 5px; text-align: center; display: inline-block; position: relative; }
-        .preview-canvas { border: 1px solid #ddd; margin: 5px; max-width: 100%; height: auto; cursor: move; }
+        .sortable { display: flex; flex-wrap: wrap; justify-content: center; user-select: none; }
+        .merge-item, .reorder-item, .edit-item { margin: 10px; border: 1px solid #ccc; padding: 5px; text-align: center; display: inline-block; position: relative; user-select: none; }
+        .preview-canvas { border: 1px solid #ddd; margin: 5px; max-width: 100%; height: auto; user-select: none; -webkit-user-drag: none; -khtml-user-drag: none; -moz-user-drag: none; -o-user-drag: none; user-drag: none; touch-action: manipulation; }
         button { margin: 2px; }
-        .drag-handle { cursor: grab; font-size: 20px; position: absolute; top: 5px; right: 5px; }
+        .drag-handle { cursor: grab; font-size: 20px; position: absolute; top: 5px; right: 5px; user-select: none; }
         @media (max-width: 600px) {
             .merge-item, .reorder-item, .edit-item { width: 90%; margin: 5px auto; }
             .preview-canvas { max-width: 100%; }

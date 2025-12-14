@@ -7,20 +7,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     const iink = window.iink;
     const ComputeEngine = window.ComputeEngine;
 
-    // Inicializar Tesseract con traineddata para math y equ
-    const worker = await Tesseract.createWorker({
-        workerPath: 'https://unpkg.com/tesseract.js@v5/dist/worker.min.js',
-        langPath: 'https://raw.githubusercontent.com/tesseract-ocr/tessdata/main/',
-        corePath: 'https://unpkg.com/tesseract.js-core@v5/tesseract-core.wasm.js',
-        gzip: false,
-    });
-    await worker.load();
-    await worker.loadLanguage('eng');
-    await worker.loadLanguage('equ');
-    await worker.initialize('eng+equ');
-    window.tesseractWorker = worker;
+    // Inicializar Tesseract con try catch para no detener el script
+    let worker;
+    try {
+        worker = await Tesseract.createWorker({
+            workerPath: 'https://unpkg.com/tesseract.js@v5/dist/worker.min.js',
+            langPath: 'https://raw.githubusercontent.com/tesseract-ocr/tessdata/main/',
+            corePath: 'https://unpkg.com/tesseract.js-core@v5/tesseract-core.wasm.js',
+            gzip: false,
+        });
+        await worker.load();
+        await worker.loadLanguage('eng');
+        await worker.loadLanguage('equ');
+        await worker.initialize('eng+equ');
+        window.tesseractWorker = worker;
+    } catch (e) {
+        console.error('Error al inicializar Tesseract:', e);
+        // Continuar sin OCR si falla
+    }
 
-    // Render LaTeX en tiempo real con editor visual usando MathLive
+    // Resto del código igual
+
     const mathField = document.getElementById('math-field');
     const latexOutput = document.getElementById('latex-output');
     const symbolCategory = document.getElementById('symbol-category');
@@ -29,63 +36,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const templateSelect = document.getElementById('template-select');
     const insertTemplate = document.getElementById('insert-template');
     const copyLatex = document.getElementById('copy-latex');
-
-    function populateSymbols(category) {
-        // same as before
-    }
-
-    if (symbolCategory) {
-        symbolCategory.addEventListener('change', () => populateSymbols(symbolCategory.value));
-        populateSymbols(symbolCategory.value);
-    }
-
-    if (mathField) {
-        mathField.addEventListener('input', () => {
-            const latex = mathField.value;
-            latexOutput.innerHTML = '';
-            if (latex) {
-                try {
-                    katex.render(latex, latexOutput, { throwOnError: false, displayMode: true });
-                } catch (e) {
-                    latexOutput.innerHTML = `<span class="error">Error en LaTeX: ${e.message}</span>`;
-                }
-            }
-        });
-    }
-
-    if (insertSymbol && mathField) {
-        insertSymbol.addEventListener('click', () => {
-            mathField.insert(symbolSelect.value, { focus: true, feedback: true });
-        });
-    }
-
-    if (insertTemplate && mathField) {
-        insertTemplate.addEventListener('click', () => {
-            mathField.insert(templateSelect.value, { focus: true, feedback: true });
-        });
-    }
-
-    if (copyLatex && mathField) {
-        copyLatex.addEventListener('click', () => {
-            navigator.clipboard.writeText(mathField.value).then(() => alert('LaTeX copiado!'));
-        });
-    }
-
-    // Fórmula a imagen con opciones
-    // same as before
-
-    // OCR Imagen a LaTeX
-    // same as before
-
-    // Handwriting recognition con iinkJS
-    // same as before
-
-    // Conversor de unidades con math.js
-    // same as before
-
-    // Solucionador de ecuaciones con math.js
-    // same as before
-
 
     const symbols = {
         basic: {
@@ -479,6 +429,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         });
+        // Trigger initial
+        mathField.dispatchEvent(new Event('input'));
     }
 
     if (insertSymbol && mathField) {
@@ -495,11 +447,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (copyLatex && mathField) {
         copyLatex.addEventListener('click', () => {
-            navigator.clipboard.writeText(mathField.value).then(() => alert('LaTeX copiado!'));
+            navigator.clipboard.writeText(mathField.value).then(() => alert('LaTeX copiado!')).catch(err => console.error('Error al copiar: ', err));
         });
     }
 
-    // Fórmula a imagen con opciones
+    // Fórmula a imagen
     const formulaButton = document.getElementById('formula-to-image');
     const formulaCanvas = document.getElementById('formula-canvas');
     const downloadImage = document.getElementById('download-image');
@@ -538,7 +490,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // OCR Imagen a LaTeX
+    // OCR
     const ocrInput = document.getElementById('ocr-input');
     const ocrButton = document.getElementById('ocr-button');
     const ocrOutput = document.getElementById('ocr-output');
@@ -593,7 +545,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Handwriting recognition con iinkJS
+    // Handwriting
     const handwritingCanvas = document.getElementById('handwriting-canvas');
     const clearHandwriting = document.getElementById('clear-handwriting');
     const recognizeButton = document.getElementById('recognize-handwriting');
@@ -603,49 +555,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     const importHandwriting = document.getElementById('import-handwriting-to-editor');
 
     if (handwritingCanvas) {
-        const editor = iink.register(handwritingCanvas, {
-            recognitionParams: {
-                type: 'MATH',
-                protocol: 'WEBSOCKET',
-                server: {
-                    scheme: 'https',
-                    host: 'cloud.myscript.com',
-                    applicationKey: '75728c88-1557-4fc6-a309-ebebf286c710',
-                    hmacKey: 'ee706c42-6fb5-4333-88b7-abfcbe30c2aa'
-                }
-            },
-            iink: {
-                pointerEvents: true // Asegura touch support
-            }
-        });
-
-        // Resize canvas on window resize for mobile
-        window.addEventListener('resize', () => {
-            editor.resize();
-        });
-
-        recognizeButton.addEventListener('click', () => {
-            editor.export_('application/x-latex').then(latex => {
-                if (latex) {
-                    handwritingOutput.textContent = latex;
-                    try {
-                        katex.render(latex, handwritingPreview, { throwOnError: false, displayMode: true });
-                    } catch {
-                        handwritingPreview.innerHTML = '<span class="error">No se pudo renderizar.</span>';
+        try {
+            const editor = iink.register(handwritingCanvas, {
+                recognitionParams: {
+                    type: 'MATH',
+                    protocol: 'WEBSOCKET',
+                    server: {
+                        scheme: 'https',
+                        host: 'cloud.myscript.com',
+                        applicationKey: '75728c88-1557-4fc6-a309-ebebf286c710',
+                        hmacKey: 'ee706c42-6fb5-4333-88b7-abfcbe30c2aa'
                     }
-                } else {
-                    handwritingOutput.textContent = 'No se reconoció nada.';
                 }
-            }).catch(err => {
-                handwritingOutput.textContent = `Error: ${err.message}`;
             });
-        });
 
-        clearHandwriting.addEventListener('click', () => {
-            editor.clear();
-            handwritingOutput.textContent = '';
-            handwritingPreview.innerHTML = '';
-        });
+            window.addEventListener('resize', () => {
+                editor.resize();
+            });
+
+            recognizeButton.addEventListener('click', () => {
+                editor.export_('application/x-latex').then(latex => {
+                    handwritingOutput.textContent = latex || 'No se reconoció nada.';
+                    if (latex) {
+                        try {
+                            katex.render(latex, handwritingPreview, { throwOnError: false, displayMode: true });
+                        } catch {
+                            handwritingPreview.innerHTML = '<span class="error">No se pudo renderizar.</span>';
+                        }
+                    }
+                }).catch(err => {
+                    handwritingOutput.textContent = `Error: ${err.message}`;
+                });
+            });
+
+            clearHandwriting.addEventListener('click', () => {
+                editor.clear();
+                handwritingOutput.textContent = '';
+                handwritingPreview.innerHTML = '';
+            });
+        } catch (e) {
+            console.error('Error al inicializar iink:', e);
+        }
     }
 
     if (copyHandwriting) {
@@ -662,7 +612,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Conversor de unidades con math.js
+    // Conversor de unidades
     const unitCategory = document.getElementById('unit-category');
     const unitValue = document.getElementById('unit-value');
     const unitFrom = document.getElementById('unit-from');
@@ -710,7 +660,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Solucionador de ecuaciones con math.js
+    // Solucionador de ecuaciones
     const equationInput = document.getElementById('equation-input');
     const solveButton = document.getElementById('solve-equation');
     const equationResult = document.getElementById('equation-result');
@@ -728,7 +678,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Graficador de funciones mejorado con ComputeEngine para LaTeX
+    // Graficador
     const functionField = document.getElementById('function-field');
     const xMinInput = document.getElementById('x-min');
     const xMaxInput = document.getElementById('x-max');
@@ -737,7 +687,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const plotCanvas = document.getElementById('plot-canvas');
 
     if (plotButton && functionField && plotCanvas && ComputeEngine) {
-        const ce = new ComputeEngine();
+        const ce = new ComputeEngine.ComputeEngine();
         let chart;
         plotButton.addEventListener('click', () => {
             const funcs = functionField.value.trim().split(';').map(f => f.trim());
@@ -761,8 +711,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const yValues = xValues.map(x => {
                     if (!expr) return null;
                     try {
-                        const result = expr.evaluate({ x: ce.box(x) });
-                        return result.numericValue ?? result.value ?? null;
+                        const result = expr.substitute('x', ce.box(x)).N();
+                        return result.valueOf();
                     } catch {
                         return null;
                     }
@@ -777,7 +727,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }).filter(ds => ds.data.some(pt => pt.y !== null));
             if (datasets.length === 0) return alert('No se pudieron parsear las funciones.');
             if (chart) chart.destroy();
-            chart = new Chart(plotCanvas.getContext('2d'), {
+            chart = new Chart(plotCanvas, {
                 type: 'line',
                 data: { datasets },
                 options: {

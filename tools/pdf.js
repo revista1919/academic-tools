@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
     const PDFLib = window.PDFLib;
     const Sortable = window.Sortable;
-
     // Enhanced helper functions with own ideas
     // Función helper para renderizar página en canvas con zoom support
     async function renderPage(page, scale = 0.5, rotation = 0) {
@@ -16,7 +15,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         await page.render({ canvasContext: context, viewport }).promise;
         return canvas;
     }
-
     // Función mejorada para detectar página en blanco (analiza texto e imágenes)
     async function isBlankPage(page) {
         const textContent = await page.getTextContent();
@@ -25,40 +23,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         const hasImages = ops.fnArray.some(op => op === pdfjsLib.OPS.paintImageXObject); // Detecta imágenes
         return text.length < 50 && !hasImages; // Umbral ajustable, ahora considera imágenes
     }
-
     // Nueva función para extraer número trailing de filename (del Python script)
     function extractTrailingNumber(filename) {
         const match = filename.match(/(\d+)(?=\.pdf$)/i);
         return match ? parseInt(match[1]) : null;
     }
-
     // Función para sanitizar nombres de archivos
     function sanitizeFilename(name) {
         return name.replace(/[^a-zA-Z0-9_-]/g, '_');
     }
-
     // Sesión persistence usando localStorage (idea propia inspirada en Qt session)
     function saveSession(key, data) {
         localStorage.setItem(key, JSON.stringify(data));
     }
-
     function loadSession(key) {
         const data = localStorage.getItem(key);
         return data ? JSON.parse(data) : null;
     }
-
     // Unir PDFs - Enhanced con sorting por trailing number y session, más previews de primera página
     const mergeUpload = document.getElementById('pdf-upload-merge');
     const mergeButton = document.getElementById('merge-pdf');
     const downloadMerge = document.getElementById('download-merge');
     let mergeFiles = loadSession('mergeFiles') || [];
-
     // Fix for session: if loaded data is not actual Files, treat as empty
     if (mergeFiles.length > 0 && !(mergeFiles[0] instanceof File)) {
         mergeFiles = [];
         saveSession('mergeFiles', []);
     }
-
     if (mergeUpload) {
         mergeUpload.addEventListener('change', async (e) => {
             const newFiles = Array.from(e.target.files);
@@ -78,7 +69,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             await renderMergeList();
         });
     }
-
     async function renderMergeList() {
         const list = document.getElementById('merge-list');
         if (list) {
@@ -88,7 +78,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const item = document.createElement('div');
                 item.classList.add('merge-item');
                 item.draggable = true; // Drag & drop para reordenar
-
                 // Render preview de primera página
                 try {
                     const arrayBuffer = await file.arrayBuffer();
@@ -103,14 +92,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     errorSpan.textContent = 'Preview no disponible';
                     item.appendChild(errorSpan);
                 }
-
                 // Nombre del archivo
                 const nameSpan = document.createElement('span');
                 nameSpan.textContent = file.name;
                 nameSpan.style.display = 'block';
                 nameSpan.style.textAlign = 'center';
                 item.appendChild(nameSpan);
-
                 // Botón eliminar
                 const removeBtn = document.createElement('button');
                 removeBtn.textContent = 'Eliminar';
@@ -120,24 +107,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                     renderMergeList();
                 });
                 item.appendChild(removeBtn);
-
                 // Agregar handle para drag
                 const dragHandle = document.createElement('span');
                 dragHandle.classList.add('drag-handle');
                 dragHandle.textContent = '☰';
                 item.appendChild(dragHandle);
-
                 list.appendChild(item);
             }
-            new Sortable(list, { 
-                animation: 150, 
+            new Sortable(list, {
+                animation: 150,
                 handle: '.drag-handle', // Mejor UX con handle dedicado
                 touchStartThreshold: 5, // Mejor para mobile
                 fallbackTolerance: 3
             });
         }
     }
-
     if (mergeButton) {
         mergeButton.addEventListener('click', async () => {
             if (mergeFiles.length < 2 || !(mergeFiles[0] instanceof File)) {
@@ -161,7 +145,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             await renderMergeList(); // Update list
         });
     }
-
     // Reordenar páginas - Enhanced con previews zoomables y rotation
     const reorderUpload = document.getElementById('pdf-upload-reorder');
     const previewReorder = document.getElementById('pdf-preview-reorder');
@@ -169,7 +152,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const downloadReorder = document.getElementById('download-reorder');
     let pageCanvases = [];
     let rotations = []; // Nueva: track rotations per page
-
     if (reorderUpload && previewReorder) {
         reorderUpload.addEventListener('change', async () => {
             const file = reorderUpload.files[0];
@@ -223,7 +205,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             saveSession('reorderState', { rotations });
         });
     }
-
     async function rotatePage(wrapper, index) {
         rotations[index] = (rotations[index] + 90) % 360;
         const file = reorderUpload.files[0];
@@ -237,13 +218,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         pageCanvases[index] = newCanvas;
         saveSession('reorderState', { rotations });
     }
-
     function zoomPage(canvas, factor) {
         const currentScale = canvas.style.transform ? parseFloat(canvas.style.transform.match(/scale\(([^)]+)\)/)[1]) : 1;
         const newScale = currentScale * factor;
         canvas.style.transform = `scale(${newScale})`; // Improved zoom with cumulative scaling
     }
-
     if (reorderButton) {
         reorderButton.addEventListener('click', async () => {
             if (!reorderUpload.files[0]) return;
@@ -265,7 +244,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             downloadReorder.style.display = 'block';
         });
     }
-
     // Seleccionar rangos y eliminar páginas - Complexified con auto-detect blanks mejorado y extract pages
     const editUpload = document.getElementById('pdf-upload-edit');
     const previewEdit = document.getElementById('pdf-preview-edit');
@@ -277,7 +255,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const downloadEdited = document.getElementById('download-edited');
     let editPdfDoc;
     let selectedPages = new Set();
-
     if (editUpload) {
         editUpload.addEventListener('change', async () => {
             const file = editUpload.files[0];
@@ -307,7 +284,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             saveSession('editState', Array.from(selectedPages));
         });
     }
-
     function toggleSelect(canvas, index) {
         if (selectedPages.has(index)) {
             selectedPages.delete(index);
@@ -318,7 +294,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         saveSession('editState', Array.from(selectedPages));
     }
-
     if (selectRangeButton && rangeInput) {
         selectRangeButton.addEventListener('click', async () => {
             if (!editPdfDoc) return;
@@ -340,7 +315,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             alert('Rangos seleccionados.');
         });
     }
-
     if (removeBlanksButton) {
         removeBlanksButton.addEventListener('click', async () => {
             if (!editUpload.files[0]) return;
@@ -360,7 +334,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             alert('Páginas en blanco eliminadas de selección.');
         });
     }
-
     // Nueva: Extract pages to new PDF
     if (extractButton) {
         extractButton.addEventListener('click', async () => {
@@ -376,7 +349,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             link.click();
         });
     }
-
     if (saveEditedButton) {
         saveEditedButton.addEventListener('click', async () => {
             if (!editPdfDoc || selectedPages.size === 0) return;
@@ -391,11 +363,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             downloadEdited.style.display = 'block';
         });
     }
-
     // Preview simple - Usando visualizador nativo del navegador con embed
     const previewUpload = document.getElementById('pdf-upload-preview');
     const pdfPreview = document.getElementById('pdf-preview');
-
     if (previewUpload && pdfPreview) {
         previewUpload.addEventListener('change', () => {
             const file = previewUpload.files[0];
@@ -410,12 +380,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             pdfPreview.appendChild(embed);
         });
     }
-
     // Renombrado automático - Enhanced con más metadata y fallback OCR si no hay metadata (simulado)
     const renameUpload = document.getElementById('pdf-upload-rename');
     const renameButton = document.getElementById('rename-pdf');
     const downloadRenamed = document.getElementById('download-renamed');
-
     if (renameButton && renameUpload) {
         renameButton.addEventListener('click', async () => {
             const file = renameUpload.files[0];
@@ -441,7 +409,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             downloadRenamed.textContent = `Descargar como ${newName}`;
         });
     }
-
     // Cargar sessions iniciales
     await renderMergeList();
 });
