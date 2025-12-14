@@ -5,9 +5,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const PDFLib = window.PDFLib;
     const Sortable = window.Sortable;
     // Enhanced helper functions with own ideas
-    // Función helper para renderizar página en canvas con zoom support
-    async function renderPage(page, scale = 0.5, rotation = 0) {
-        const viewport = page.getViewport({ scale, rotation });
+    // Función helper para renderizar página en canvas con zoom support, ajustado para fit en maxDim
+    async function renderPage(page, maxDim = 300, rotation = 0) {
+        let viewport = page.getViewport({ scale: 1, rotation });
+        const larger = Math.max(viewport.width, viewport.height);
+        const scale = Math.min(1, maxDim / larger); // Evita escalas >1, pero ajusta para fit
+        viewport = page.getViewport({ scale, rotation });
         const canvas = document.createElement('canvas');
         canvas.height = viewport.height;
         canvas.width = viewport.width;
@@ -40,6 +43,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const data = localStorage.getItem(key);
         return data ? JSON.parse(data) : null;
     }
+    // Detectar mobile para previews más pequeños
+    const isMobile = window.innerWidth < 600;
+    const previewMaxDim = isMobile ? 200 : 300;
     // Unir PDFs - Enhanced con sorting por trailing number y session, más previews de primera página
     const mergeUpload = document.getElementById('pdf-upload-merge');
     const mergeButton = document.getElementById('merge-pdf');
@@ -83,7 +89,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const arrayBuffer = await file.arrayBuffer();
                     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
                     const page = await pdf.getPage(1);
-                    const canvas = await renderPage(page, 0.5); // Aumentar escala para mejor visibilidad
+                    const canvas = await renderPage(page, previewMaxDim); // Usar maxDim ajustado
                     canvas.classList.add('preview-canvas');
                     item.appendChild(canvas);
                 } catch (error) {
@@ -163,7 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             rotations = new Array(pdf.numPages).fill(0);
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
-                const canvas = await renderPage(page, 0.5, rotations[i-1]);
+                const canvas = await renderPage(page, previewMaxDim, rotations[i-1]);
                 canvas.dataset.pageIndex = i - 1;
                 canvas.classList.add('preview-canvas');
                 const wrapper = document.createElement('div');
@@ -211,7 +217,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const page = await pdf.getPage(index + 1);
-        const newCanvas = await renderPage(page, 0.5, rotations[index]);
+        const newCanvas = await renderPage(page, previewMaxDim, rotations[index]);
         newCanvas.dataset.pageIndex = index;
         newCanvas.classList.add('preview-canvas');
         wrapper.replaceChild(newCanvas, wrapper.firstChild);
@@ -266,7 +272,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             selectedPages.clear();
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
-                const canvas = await renderPage(page, 0.5);
+                const canvas = await renderPage(page, previewMaxDim);
                 canvas.dataset.pageNum = i;
                 canvas.classList.add('preview-canvas');
                 canvas.addEventListener('click', () => toggleSelect(canvas, i-1));
