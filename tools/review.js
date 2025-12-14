@@ -1,5 +1,7 @@
 // tools/review.js
 document.addEventListener('DOMContentLoaded', () => {
+    // Define pdfjsLib from the global
+    const pdfjsLib = window['pdfjs-dist/build/pdf'];
     // Elementos del DOM
     const paperText = document.getElementById('paper-text');
     const fileUpload = document.getElementById('file-upload');
@@ -67,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'MLA': {
             inText: /\(([^)]+?)\s*(\d+)(?:;\s*[^)]+?\s*\d+)*\)/g,
             ref: /([^,]+?),\s*([^.]+?)\.\s*([^,]+?),\s*(\d{4})\./g,
-            extractInText: cite => cite.replace(/[()]/g, '').trim().split(';').map(c => c.trim().split(/\s+/)[0]),
+            extractInText: cite => cite.replace(/[()]/g, '').trim().split(';').map(c => c.trim().replace(/\s*\d+$/, '')),
             extractRef: ref => {
                 const match = ref.match(/([^,]+?),\s*[^.]+?\.\s*[^,]+?,\s*(\d{4})/);
                 return match ? match[1].trim() : '';
@@ -93,8 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     // Configuración para pdf.js (agregado para corregir el error de compatibilidad con PDF)
-    if (typeof PDFJS !== 'undefined') {
-        PDFJS.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.338/pdf.worker.min.js';
+    if (typeof pdfjsLib !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@latest/build/pdf.worker.min.js';
     }
     // Función para guardar en historia
     function saveToHistory(text) {
@@ -155,11 +157,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     saveToHistory(evt.target.result);
                     alert('Archivo cargado. Puedes editar el texto y usar las herramientas de análisis.');
                 };
-            } else if (file.type === 'application/pdf' && typeof PDFJS !== 'undefined') {
+            } else if (file.type === 'application/pdf' && typeof pdfjsLib !== 'undefined') {
                 reader.readAsArrayBuffer(file);
                 reader.onload = async (evt) => {
                     try {
-                        const loadingTask = PDFJS.getDocument({ data: evt.target.result });
+                        const loadingTask = pdfjsLib.getDocument({ data: evt.target.result });
                         const pdf = await loadingTask.promise;
                         let text = '';
                         for (let i = 1; i <= pdf.numPages; i++) {
@@ -366,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const total = checklistContainer.querySelectorAll('input[type="checkbox"]').length;
             const checklistBonus = total > 0 ? (checked / total) * 30 : 0;
             const score = 100 -
-                (structureResult.textContent?.includes('sugeridas') ? 15 : 0) -  // Corregido de 'faltantes' a 'sugeridas' para coincidir con el texto generado
+                (structureResult.textContent?.includes('sugeridas') ? 15 : 0) -  
                 (inconsistenciesResult.textContent?.match(/(sin|no citadas|duplicadas|sin definición)/g)?.length || 0) * 8 -
                 (lengthResult.textContent?.match(/(corto|largo|Pocas)/g)?.length || 0) * 10 +
                 checklistBonus;
