@@ -5,15 +5,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const Chart = window.Chart;
     const Tesseract = window.Tesseract;
     const iink = window.iink;
+    const ComputeEngine = window.ComputeEngine;
 
     // Inicializar Tesseract con traineddata para math y equ
     const worker = await Tesseract.createWorker({
         workerPath: 'https://unpkg.com/tesseract.js@v5/dist/worker.min.js',
-        langPath: 'https://tesseract.projectnaptha.com/langs/',
+        langPath: 'https://raw.githubusercontent.com/tesseract-ocr/tessdata/main/',
         corePath: 'https://unpkg.com/tesseract.js-core@v5/tesseract-core.wasm.js',
+        gzip: false,
     });
     await worker.load();
-    await worker.loadLanguage('eng+equ');
+    await worker.loadLanguage('eng');
+    await worker.loadLanguage('equ');
     await worker.initialize('eng+equ');
     window.tesseractWorker = worker;
 
@@ -26,6 +29,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     const templateSelect = document.getElementById('template-select');
     const insertTemplate = document.getElementById('insert-template');
     const copyLatex = document.getElementById('copy-latex');
+
+    function populateSymbols(category) {
+        // same as before
+    }
+
+    if (symbolCategory) {
+        symbolCategory.addEventListener('change', () => populateSymbols(symbolCategory.value));
+        populateSymbols(symbolCategory.value);
+    }
+
+    if (mathField) {
+        mathField.addEventListener('input', () => {
+            const latex = mathField.value;
+            latexOutput.innerHTML = '';
+            if (latex) {
+                try {
+                    katex.render(latex, latexOutput, { throwOnError: false, displayMode: true });
+                } catch (e) {
+                    latexOutput.innerHTML = `<span class="error">Error en LaTeX: ${e.message}</span>`;
+                }
+            }
+        });
+    }
+
+    if (insertSymbol && mathField) {
+        insertSymbol.addEventListener('click', () => {
+            mathField.insert(symbolSelect.value, { focus: true, feedback: true });
+        });
+    }
+
+    if (insertTemplate && mathField) {
+        insertTemplate.addEventListener('click', () => {
+            mathField.insert(templateSelect.value, { focus: true, feedback: true });
+        });
+    }
+
+    if (copyLatex && mathField) {
+        copyLatex.addEventListener('click', () => {
+            navigator.clipboard.writeText(mathField.value).then(() => alert('LaTeX copiado!'));
+        });
+    }
+
+    // Fórmula a imagen con opciones
+    // same as before
+
+    // OCR Imagen a LaTeX
+    // same as before
+
+    // Handwriting recognition con iinkJS
+    // same as before
+
+    // Conversor de unidades con math.js
+    // same as before
+
+    // Solucionador de ecuaciones con math.js
+    // same as before
+
 
     const symbols = {
         basic: {
@@ -668,7 +728,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Graficador de funciones mejorado
+    // Graficador de funciones mejorado con ComputeEngine para LaTeX
     const functionField = document.getElementById('function-field');
     const xMinInput = document.getElementById('x-min');
     const xMaxInput = document.getElementById('x-max');
@@ -676,10 +736,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const plotButton = document.getElementById('plot-function');
     const plotCanvas = document.getElementById('plot-canvas');
 
-    if (plotButton && functionField && plotCanvas) {
+    if (plotButton && functionField && plotCanvas && ComputeEngine) {
+        const ce = new ComputeEngine();
         let chart;
         plotButton.addEventListener('click', () => {
-            const funcs = functionField.value.trim().split(';').map(f => f.trim().replace(/^f\(x\)\s*=\s*/, ''));
+            const funcs = functionField.value.trim().split(';').map(f => f.trim());
             if (!funcs.length || funcs[0] === '') return alert('Ingresa al menos una función.');
             const xMin = parseFloat(xMinInput.value) || -5;
             const xMax = parseFloat(xMaxInput.value) || 5;
@@ -688,11 +749,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (steps < 10) return alert('Pasos mínimo 10.');
             const stepSize = (xMax - xMin) / steps;
             const xValues = Array.from({length: steps + 1}, (_, i) => xMin + i * stepSize);
+            const parsedExprs = funcs.map(func => {
+                try {
+                    return ce.parse(func);
+                } catch {
+                    return null;
+                }
+            });
             const datasets = funcs.map((func, index) => {
+                const expr = parsedExprs[index];
                 const yValues = xValues.map(x => {
+                    if (!expr) return null;
                     try {
-                        const scope = { x };
-                        return math.evaluate(func, scope);
+                        const result = expr.evaluate({ x: ce.box(x) });
+                        return result.numericValue ?? result.value ?? null;
                     } catch {
                         return null;
                     }
@@ -705,6 +775,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     pointRadius: 0
                 };
             }).filter(ds => ds.data.some(pt => pt.y !== null));
+            if (datasets.length === 0) return alert('No se pudieron parsear las funciones.');
             if (chart) chart.destroy();
             chart = new Chart(plotCanvas.getContext('2d'), {
                 type: 'line',

@@ -90,11 +90,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 item.draggable = true; // Drag & drop para reordenar
 
                 // Render preview de primera página
-                const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                const page = await pdf.getPage(1);
-                const canvas = await renderPage(page, 0.3); // Escala pequeña para preview
-                item.appendChild(canvas);
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    const page = await pdf.getPage(1);
+                    const canvas = await renderPage(page, 0.5); // Aumentar escala para mejor visibilidad
+                    canvas.classList.add('preview-canvas');
+                    item.appendChild(canvas);
+                } catch (error) {
+                    console.error('Error rendering preview:', error);
+                    const errorSpan = document.createElement('span');
+                    errorSpan.textContent = 'Preview no disponible';
+                    item.appendChild(errorSpan);
+                }
 
                 // Nombre del archivo
                 const nameSpan = document.createElement('span');
@@ -113,9 +121,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 item.appendChild(removeBtn);
 
+                // Agregar handle para drag
+                const dragHandle = document.createElement('span');
+                dragHandle.classList.add('drag-handle');
+                dragHandle.textContent = '☰';
+                item.appendChild(dragHandle);
+
                 list.appendChild(item);
             }
-            new Sortable(list, { animation: 150, handle: 'canvas' }); // Handle en canvas para mejor touch en mobile
+            new Sortable(list, { 
+                animation: 150, 
+                handle: '.drag-handle', // Mejor UX con handle dedicado
+                touchStartThreshold: 5, // Mejor para mobile
+                fallbackTolerance: 3
+            });
         }
     }
 
@@ -164,6 +183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const page = await pdf.getPage(i);
                 const canvas = await renderPage(page, 0.5, rotations[i-1]);
                 canvas.dataset.pageIndex = i - 1;
+                canvas.classList.add('preview-canvas');
                 const wrapper = document.createElement('div');
                 wrapper.classList.add('reorder-item');
                 wrapper.appendChild(canvas);
@@ -186,12 +206,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 pageNumSpan.style.display = 'block';
                 pageNumSpan.style.textAlign = 'center';
                 wrapper.appendChild(pageNumSpan);
+                // Drag handle
+                const dragHandle = document.createElement('span');
+                dragHandle.classList.add('drag-handle');
+                dragHandle.textContent = '☰';
+                wrapper.appendChild(dragHandle);
                 previewReorder.appendChild(wrapper);
                 pageCanvases.push(canvas);
             }
             new Sortable(previewReorder, {
                 animation: 150,
-                handle: 'canvas', // Drag by canvas, mejor para mobile
+                handle: '.drag-handle', // Mejor UX
+                touchStartThreshold: 5,
+                fallbackTolerance: 3
             });
             saveSession('reorderState', { rotations });
         });
@@ -205,6 +232,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const page = await pdf.getPage(index + 1);
         const newCanvas = await renderPage(page, 0.5, rotations[index]);
         newCanvas.dataset.pageIndex = index;
+        newCanvas.classList.add('preview-canvas');
         wrapper.replaceChild(newCanvas, wrapper.firstChild);
         pageCanvases[index] = newCanvas;
         saveSession('reorderState', { rotations });
@@ -261,8 +289,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             selectedPages.clear();
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
-                const canvas = await renderPage(page, 0.3);
+                const canvas = await renderPage(page, 0.5);
                 canvas.dataset.pageNum = i;
+                canvas.classList.add('preview-canvas');
                 canvas.addEventListener('click', () => toggleSelect(canvas, i-1));
                 const wrapper = document.createElement('div');
                 wrapper.classList.add('edit-item');

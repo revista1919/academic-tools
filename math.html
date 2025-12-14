@@ -7,6 +7,7 @@
     <title>Herramientas de Matemáticas y Ciencia Gratuitas - Academic Tools</title>
     <meta name="description" content="Render LaTeX en tiempo real, fórmula a imagen, OCR de imágenes a fórmula, reconocimiento de escritura a mano, conversor de unidades, solucionador de ecuaciones y graficador de funciones. Procesado local.">
     <meta name="keywords" content="render latex online, ocr math, handwriting math, editor ecuaciones, conversor unidades, solucionador ecuaciones, graficador funciones, herramientas para investigadores">
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.0.0/math.js"></script>
@@ -15,6 +16,7 @@
     <script src="https://unpkg.com/tesseract.js@v5/dist/tesseract.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/mathlive"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@cortex-js/compute-engine@0.20.0/dist/compute-engine.min.js"></script>
     <script src="https://cdn.myscript.com/iink/iink.min.js"></script>
     <style>
         body {
@@ -196,7 +198,7 @@
         <section>
             <h2>Graficador de Funciones Avanzado</h2>
             <p>Grafica múltiples funciones en LaTeX separadas por ;, con rango personalizado y zoom.</p>
-            <math-field id="function-field" placeholder="f(x) = sin(x); x^2"></math-field>
+            <math-field id="function-field" placeholder="\\sin(x); x^{2}"></math-field>
             <label>x Min: <input type="number" id="x-min" value="-5"></label>
             <label>x Max: <input type="number" id="x-max" value="5"></label>
             <label>Pasos: <input type="number" id="steps" value="100"></label>

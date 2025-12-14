@@ -10,14 +10,16 @@
     <link rel="stylesheet" href="styles.css">
     <style>
         .sortable { display: flex; flex-wrap: wrap; justify-content: center; }
-        .merge-item, .reorder-item, .edit-item { margin: 10px; border: 1px solid #ccc; padding: 5px; text-align: center; display: inline-block; }
-        canvas { border: 1px solid #ddd; margin: 5px; max-width: 100%; height: auto; }
+        .merge-item, .reorder-item, .edit-item { margin: 10px; border: 1px solid #ccc; padding: 5px; text-align: center; display: inline-block; position: relative; }
+        .preview-canvas { border: 1px solid #ddd; margin: 5px; max-width: 100%; height: auto; cursor: move; }
         button { margin: 2px; }
+        .drag-handle { cursor: grab; font-size: 20px; position: absolute; top: 5px; right: 5px; }
         @media (max-width: 600px) {
             .merge-item, .reorder-item, .edit-item { width: 90%; margin: 5px auto; }
-            canvas { max-width: 100%; }
+            .preview-canvas { max-width: 100%; }
             button { width: 100%; }
             input[type="file"], input[type="text"] { width: 100%; }
+            .drag-handle { font-size: 30px; } /* Más grande para touch */
         }
     </style>
 </head>
