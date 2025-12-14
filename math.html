@@ -3,7 +3,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Herramientas de Matemáticas y Ciencia Gratuitas - Academic Tools</title>
     <meta name="description" content="Render LaTeX en tiempo real, fórmula a imagen, OCR de imágenes a fórmula, reconocimiento de escritura a mano, conversor de unidades, solucionador de ecuaciones y graficador de funciones. Procesado local.">
     <meta name="keywords" content="render latex online, ocr math, handwriting math, editor ecuaciones, conversor unidades, solucionador ecuaciones, graficador funciones, herramientas para investigadores">
@@ -17,18 +17,62 @@
     <script defer src="https://cdn.jsdelivr.net/npm/mathlive"></script>
     <script src="https://cdn.myscript.com/iink/iink.min.js"></script>
     <style>
-        math-field {
-            width: 100%;
-            height: 200px;
-            font-size: 24px;
-            border: 1px solid #ccc;
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        main {
             padding: 10px;
         }
-        .virtual-keyboard {
-            font-size: 20px; /* Intentar agrandar teclado, pero MathLive maneja su tamaño */
+        section {
+            margin-bottom: 20px;
         }
-        #plot-canvas {
-            max-width: 800px;
+        button, input, select, textarea {
+            font-size: 16px; /* Mayor para mobile */
+            padding: 10px;
+            width: 100%;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        math-field {
+            width: 100%;
+            height: 150px; /* Ajustado para mobile */
+            font-size: 20px; /* Reducido ligeramente para mobile */
+            border: 1px solid #ccc;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .virtual-keyboard {
+            font-size: 18px; /* Ajuste para teclado virtual */
+        }
+        #plot-canvas, #handwriting-canvas {
+            width: 100% !important;
+            height: auto !important;
+            max-width: 100%;
+            max-height: 400px;
+            touch-action: manipulation; /* Mejor touch support */
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+        }
+        @media (max-width: 600px) {
+            h1, h2 {
+                font-size: 1.5em;
+            }
+            button, input, select {
+                font-size: 14px;
+                padding: 8px;
+            }
+            math-field {
+                height: 120px;
+                font-size: 18px;
+            }
+            #handwriting-canvas {
+                height: 200px; /* Ajuste para mobile */
+            }
         }
     </style>
 </head>
@@ -81,7 +125,6 @@
                 <option value="\\infty">Infinito</option>
                 <option value="\\vec{v}">Vector</option>
                 <option value="\\hat{u}">Unitario</option>
-                <!-- Más plantillas para complejidad -->
             </select>
             <button id="insert-template">Insertar Plantilla</button>
             <math-field id="math-field" virtual-keyboard-mode="auto" smart-fence style="font-size: 24px;"></math-field>
@@ -110,7 +153,7 @@
             <h2>OCR de Imagen a Fórmula</h2>
             <p>Sube una imagen de ecuación impresa, extrae texto y intenta renderizar como LaTeX. (Mejorado con traineddata para math)</p>
             <input type="file" id="ocr-input" accept="image/*">
-            <img id="ocr-image-preview" style="display:none; max-width:400px;">
+            <img id="ocr-image-preview" style="display:none; max-width:100%;">
             <button id="ocr-button">Procesar OCR</button>
             <pre id="ocr-output"></pre>
             <div id="ocr-preview"></div>
@@ -120,7 +163,7 @@
         <section>
             <h2>Reconocimiento de Escritura a Mano Avanzado</h2>
             <p>Dibuja ecuaciones a mano y reconoce con iinkJS (requiere key de MyScript para full func, usa demo).</p>
-            <div id="handwriting-canvas" style="width: 600px; height: 300px; border:1px solid black;"></div>
+            <div id="handwriting-canvas" style="width: 100%; height: 300px; border:1px solid black; touch-action: none;"></div>
             <button id="clear-handwriting">Limpiar</button>
             <button id="recognize-handwriting">Reconocer</button>
             <pre id="handwriting-output"></pre>

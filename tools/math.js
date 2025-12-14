@@ -1,19 +1,21 @@
 // tools/math.js
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const katex = window.katex;
     const math = window.math;
     const Chart = window.Chart;
     const Tesseract = window.Tesseract;
     const iink = window.iink;
 
-    // Inicializar Tesseract con traineddata para math
-    Tesseract.createWorker('eng+equ', 1, {
+    // Inicializar Tesseract con traineddata para math y equ
+    const worker = await Tesseract.createWorker({
         workerPath: 'https://unpkg.com/tesseract.js@v5/dist/worker.min.js',
         langPath: 'https://tesseract.projectnaptha.com/langs/',
         corePath: 'https://unpkg.com/tesseract.js-core@v5/tesseract-core.wasm.js',
-    }).then(worker => {
-        window.tesseractWorker = worker;
     });
+    await worker.load();
+    await worker.loadLanguage('eng+equ');
+    await worker.initialize('eng+equ');
+    window.tesseractWorker = worker;
 
     // Render LaTeX en tiempo real con editor visual usando MathLive
     const mathField = document.getElementById('math-field');
@@ -332,7 +334,6 @@ document.addEventListener('DOMContentLoaded', () => {
             '\\rightharpoondown': 'Arpón derecha abajo',
             '\\ncurvearrowdownup': 'No flecha curva abajo-arriba',
             '\\nlhooknwarrow': 'No hook izquierda noroeste',
-            // Añadir más de las negadas y arpones si es necesario, pero para evitar exceso, seleccionar principales
             '\\downharpoonccw': 'Arpón abajo antihorario',
             '\\downharpooncw': 'Arpón abajo horario',
             '\\leftharpoonccw': 'Arpón izquierda antihorario',
@@ -386,11 +387,9 @@ document.addEventListener('DOMContentLoaded', () => {
             '\\textacutemacron{}': 'Agudo + macrón',
             '\\textbrevemacron{}': 'Breve + macrón',
             '\\textcircumacute{}': 'Circunflejo + agudo',
-            // Añadir más de las listas de accents si relevante para math, pero muchos son text-mode
             '\\overarc{}': 'Arco sobre',
             '\\underarc{}': 'Arco debajo'
         }
-        // Puedes añadir más categorías si necesitas, como fonéticos, pero para math principal es suficiente
     };
 
     function populateSymbols(category) {
@@ -440,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Fórmula a imagen con opciones, fix para generación
+    // Fórmula a imagen con opciones
     const formulaButton = document.getElementById('formula-to-image');
     const formulaCanvas = document.getElementById('formula-canvas');
     const downloadImage = document.getElementById('download-image');
@@ -448,34 +447,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const sizeSelect = document.getElementById('size-select');
 
     if (formulaButton && mathField && formulaCanvas) {
-        formulaButton.addEventListener('click', () => {
+        formulaButton.addEventListener('click', async () => {
             const latex = mathField.value.trim();
             if (!latex) return;
             try {
                 const tempDiv = document.createElement('div');
                 tempDiv.style.position = 'absolute';
                 tempDiv.style.left = '-9999px';
+                tempDiv.style.backgroundColor = 'transparent';
                 document.body.appendChild(tempDiv);
-                const options = { throwOnError: true, output: 'html', color: colorSelect.value, fontSize: parseInt(sizeSelect.value) };
-                katex.render(latex, tempDiv, options);
-                const mathElement = tempDiv.querySelector('.katex-html');
-                html2canvas(mathElement, { scale: 2, backgroundColor: null }).then(canvas => {
-                    formulaCanvas.width = canvas.width;
-                    formulaCanvas.height = canvas.height;
-                    formulaCanvas.getContext('2d').drawImage(canvas, 0, 0);
-                    const dataUrl = formulaCanvas.toDataURL('image/png');
-                    downloadImage.href = dataUrl;
-                    downloadImage.download = 'formula.png';
-                    downloadImage.style.display = 'block';
-                    document.body.removeChild(tempDiv);
+                katex.render(latex, tempDiv, {
+                    throwOnError: true,
+                    color: colorSelect.value,
+                    fontSize: parseInt(sizeSelect.value),
+                    displayMode: true
                 });
+                const mathElement = tempDiv.querySelector('.katex-html');
+                const canvas = await html2canvas(mathElement, { scale: 2, backgroundColor: null });
+                formulaCanvas.width = canvas.width;
+                formulaCanvas.height = canvas.height;
+                formulaCanvas.getContext('2d').drawImage(canvas, 0, 0);
+                const dataUrl = formulaCanvas.toDataURL('image/png');
+                downloadImage.href = dataUrl;
+                downloadImage.download = 'formula.png';
+                downloadImage.style.display = 'block';
+                document.body.removeChild(tempDiv);
             } catch (e) {
                 alert(`Error generando imagen: ${e.message}`);
             }
         });
     }
 
-    // OCR Imagen a LaTeX (mejorado con previsualización y importación al editor)
+    // OCR Imagen a LaTeX
     const ocrInput = document.getElementById('ocr-input');
     const ocrButton = document.getElementById('ocr-button');
     const ocrOutput = document.getElementById('ocr-output');
@@ -496,21 +499,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (ocrButton && ocrInput) {
-        ocrButton.addEventListener('click', () => {
+        ocrButton.addEventListener('click', async () => {
             const file = ocrInput.files[0];
             if (!file) return;
             ocrOutput.textContent = 'Procesando...';
             const url = URL.createObjectURL(file);
-            window.tesseractWorker.recognize(url).then(({ data: { text } }) => {
-                ocrOutput.textContent = text.trim();
+            try {
+                const { data: { text } } = await window.tesseractWorker.recognize(url);
+                const cleanedText = text.trim().replace(/\n/g, ' ');
+                ocrOutput.textContent = cleanedText;
                 try {
-                    katex.render(text, ocrPreview, { throwOnError: false });
+                    katex.render(cleanedText, ocrPreview, { throwOnError: false, displayMode: true });
                 } catch {
                     ocrPreview.innerHTML = '<span class="error">No se pudo renderizar como LaTeX. Edita el texto.</span>';
                 }
-            }).catch(err => {
+            } catch (err) {
                 ocrOutput.textContent = `Error: ${err.message}`;
-            });
+            }
         });
     }
 
@@ -528,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Handwriting recognition con iinkJS para math
+    // Handwriting recognition con iinkJS
     const handwritingCanvas = document.getElementById('handwriting-canvas');
     const clearHandwriting = document.getElementById('clear-handwriting');
     const recognizeButton = document.getElementById('recognize-handwriting');
@@ -548,22 +553,38 @@ document.addEventListener('DOMContentLoaded', () => {
                     applicationKey: '75728c88-1557-4fc6-a309-ebebf286c710',
                     hmacKey: 'ee706c42-6fb5-4333-88b7-abfcbe30c2aa'
                 }
+            },
+            iink: {
+                pointerEvents: true // Asegura touch support
             }
         });
 
+        // Resize canvas on window resize for mobile
+        window.addEventListener('resize', () => {
+            editor.resize();
+        });
+
         recognizeButton.addEventListener('click', () => {
-            editor.export_('text/latex').then(latex => {
-                handwritingOutput.textContent = latex;
-                try {
-                    katex.render(latex, handwritingPreview, { throwOnError: false });
-                } catch {
-                    handwritingPreview.innerHTML = '<span class="error">No se pudo renderizar.</span>';
+            editor.export_('application/x-latex').then(latex => {
+                if (latex) {
+                    handwritingOutput.textContent = latex;
+                    try {
+                        katex.render(latex, handwritingPreview, { throwOnError: false, displayMode: true });
+                    } catch {
+                        handwritingPreview.innerHTML = '<span class="error">No se pudo renderizar.</span>';
+                    }
+                } else {
+                    handwritingOutput.textContent = 'No se reconoció nada.';
                 }
+            }).catch(err => {
+                handwritingOutput.textContent = `Error: ${err.message}`;
             });
         });
 
         clearHandwriting.addEventListener('click', () => {
             editor.clear();
+            handwritingOutput.textContent = '';
+            handwritingPreview.innerHTML = '';
         });
     }
 
@@ -581,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Conversor de unidades con math.js, categorías dinámicas
+    // Conversor de unidades con math.js
     const unitCategory = document.getElementById('unit-category');
     const unitValue = document.getElementById('unit-value');
     const unitFrom = document.getElementById('unit-from');
@@ -594,7 +615,6 @@ document.addEventListener('DOMContentLoaded', () => {
         mass: ['kg', 'g', 'lb', 'oz'],
         temperature: ['celsius', 'fahrenheit', 'kelvin'],
         energy: ['joule', 'calorie', 'kwh'],
-        // Añadir más
     };
 
     function populateUnits(category) {
@@ -648,7 +668,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Graficador de funciones mejorado con rango, múltiples funciones y MathLive input
+    // Graficador de funciones mejorado
     const functionField = document.getElementById('function-field');
     const xMinInput = document.getElementById('x-min');
     const xMaxInput = document.getElementById('x-max');
@@ -659,39 +679,42 @@ document.addEventListener('DOMContentLoaded', () => {
     if (plotButton && functionField && plotCanvas) {
         let chart;
         plotButton.addEventListener('click', () => {
-            const funcs = functionField.value.trim().split(';').map(f => f.trim());
-            if (!funcs.length) return;
+            const funcs = functionField.value.trim().split(';').map(f => f.trim().replace(/^f\(x\)\s*=\s*/, ''));
+            if (!funcs.length || funcs[0] === '') return alert('Ingresa al menos una función.');
             const xMin = parseFloat(xMinInput.value) || -5;
             const xMax = parseFloat(xMaxInput.value) || 5;
             const steps = parseInt(stepsInput.value) || 100;
+            if (xMin >= xMax) return alert('x Min debe ser menor que x Max.');
+            if (steps < 10) return alert('Pasos mínimo 10.');
             const stepSize = (xMax - xMin) / steps;
             const xValues = Array.from({length: steps + 1}, (_, i) => xMin + i * stepSize);
             const datasets = funcs.map((func, index) => {
                 const yValues = xValues.map(x => {
                     try {
-                        return math.evaluate(func.replace(/x/g, `(${x})`));
+                        const scope = { x };
+                        return math.evaluate(func, scope);
                     } catch {
                         return null;
                     }
                 });
                 return {
                     label: func,
-                    data: yValues,
-                    borderColor: ['blue', 'red', 'green', 'orange'][index % 4],
-                    fill: false
+                    data: yValues.map((y, i) => ({ x: xValues[i], y })),
+                    borderColor: ['#007bff', '#dc3545', '#28a745', '#ffc107'][index % 4],
+                    fill: false,
+                    pointRadius: 0
                 };
-            });
+            }).filter(ds => ds.data.some(pt => pt.y !== null));
             if (chart) chart.destroy();
-            chart = new Chart(plotCanvas, {
+            chart = new Chart(plotCanvas.getContext('2d'), {
                 type: 'line',
-                data: {
-                    labels: xValues,
-                    datasets: datasets
-                },
+                data: { datasets },
                 options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
-                        x: { title: { display: true, text: 'x' } },
-                        y: { title: { display: true, text: 'y' } }
+                        x: { type: 'linear', title: { display: true, text: 'x' } },
+                        y: { type: 'linear', title: { display: true, text: 'y' } }
                     },
                     plugins: {
                         zoom: {

@@ -9,10 +9,16 @@
     <meta name="keywords" content="unir pdf académico, herramientas pdf gratis, herramientas para papers, utilidades académicas online">
     <link rel="stylesheet" href="styles.css">
     <style>
-        .sortable { display: flex; flex-wrap: wrap; }
-        .sortable div { margin: 5px; border: 1px solid #ccc; padding: 5px; }
-        canvas { border: 1px solid #ddd; margin: 5px; }
+        .sortable { display: flex; flex-wrap: wrap; justify-content: center; }
+        .merge-item, .reorder-item, .edit-item { margin: 10px; border: 1px solid #ccc; padding: 5px; text-align: center; display: inline-block; }
+        canvas { border: 1px solid #ddd; margin: 5px; max-width: 100%; height: auto; }
         button { margin: 2px; }
+        @media (max-width: 600px) {
+            .merge-item, .reorder-item, .edit-item { width: 90%; margin: 5px auto; }
+            canvas { max-width: 100%; }
+            button { width: 100%; }
+            input[type="file"], input[type="text"] { width: 100%; }
+        }
     </style>
 </head>
 <body>
@@ -32,7 +38,7 @@
     <main>
         <section>
             <h2>Unir PDFs</h2>
-            <p>Une múltiples PDFs académicos en uno solo. Soporte para sorting automático y drag & drop.</p>
+            <p>Une múltiples PDFs académicos en uno solo. Soporte para sorting automático, drag & drop y previews de primera página.</p>
             <input type="file" id="pdf-upload-merge" multiple accept=".pdf">
             <div id="merge-list" class="sortable"></div>
             <button id="merge-pdf">Unir PDFs</button>
@@ -50,12 +56,11 @@
             <h2>Seleccionar Rangos y Eliminar Páginas</h2>
             <p>Selecciona rangos, elimina páginas en blanco o específicas. Click en previews para toggle.</p>
             <input type="file" id="pdf-upload-edit" accept=".pdf">
-            <div id="pdf-preview-edit"></div>
+            <div id="pdf-preview-edit" class="sortable"></div>
             <input type="text" id="range-input" placeholder="Rangos: 1-3,5,7-10">
             <button id="select-range">Seleccionar Rangos</button>
             <button id="remove-blanks">Eliminar Páginas en Blanco</button>
             <button id="extract-pages">Extraer Páginas Seleccionadas</button>
-            <button id="protect-pdf">Proteger con Contraseña (Premium)</button>
             <button id="save-edited">Guardar Editado</button>
             <a id="download-edited" style="display:none">Descargar PDF Editado</a>
         </section>
@@ -70,7 +75,6 @@
             <p>Renombra PDFs basado en metadata o contenido de primera página.</p>
             <input type="file" id="pdf-upload-rename" accept=".pdf">
             <button id="rename-pdf">Renombrar</button>
-            <button id="ocr-pdf">Extraer Texto vía OCR (Premium)</button>
             <a id="download-renamed" style="display:none">Descargar PDF Renombrado</a>
         </section>
     </main>

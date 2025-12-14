@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return data ? JSON.parse(data) : null;
     }
 
-    // Unir PDFs - Enhanced con sorting por trailing number y session
+    // Unir PDFs - Enhanced con sorting por trailing number y session, más previews de primera página
     const mergeUpload = document.getElementById('pdf-upload-merge');
     const mergeButton = document.getElementById('merge-pdf');
     const downloadMerge = document.getElementById('download-merge');
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (mergeUpload) {
-        mergeUpload.addEventListener('change', (e) => {
+        mergeUpload.addEventListener('change', async (e) => {
             const newFiles = Array.from(e.target.files);
             const numbered = [], rest = [];
             newFiles.forEach(file => {
@@ -74,19 +74,36 @@ document.addEventListener('DOMContentLoaded', async () => {
             numbered.sort((a, b) => a.num - b.num);
             mergeFiles.push(...numbered.map(f => f.file), ...rest);
             saveSession('mergeFiles', mergeFiles.map(f => ({ name: f.name, size: f.size }))); // Solo metadata para session
-            // Render dynamic list (más dinámica)
-            renderMergeList();
+            // Render dynamic list with previews
+            await renderMergeList();
         });
     }
 
-    function renderMergeList() {
+    async function renderMergeList() {
         const list = document.getElementById('merge-list');
         if (list) {
             list.innerHTML = '';
-            mergeFiles.forEach((file, i) => {
+            for (let i = 0; i < mergeFiles.length; i++) {
+                const file = mergeFiles[i];
                 const item = document.createElement('div');
-                item.textContent = `${i+1}: ${file.name}`;
+                item.classList.add('merge-item');
                 item.draggable = true; // Drag & drop para reordenar
+
+                // Render preview de primera página
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const page = await pdf.getPage(1);
+                const canvas = await renderPage(page, 0.3); // Escala pequeña para preview
+                item.appendChild(canvas);
+
+                // Nombre del archivo
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = file.name;
+                nameSpan.style.display = 'block';
+                nameSpan.style.textAlign = 'center';
+                item.appendChild(nameSpan);
+
+                // Botón eliminar
                 const removeBtn = document.createElement('button');
                 removeBtn.textContent = 'Eliminar';
                 removeBtn.addEventListener('click', () => {
@@ -95,9 +112,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     renderMergeList();
                 });
                 item.appendChild(removeBtn);
+
                 list.appendChild(item);
-            });
-            new Sortable(list, { animation: 150 });
+            }
+            new Sortable(list, { animation: 150, handle: 'canvas' }); // Handle en canvas para mejor touch en mobile
         }
     }
 
@@ -121,7 +139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             downloadMerge.style.display = 'block';
             mergeFiles = []; // Clear after merge
             saveSession('mergeFiles', []);
-            renderMergeList(); // Update list
+            await renderMergeList(); // Update list
         });
     }
 
@@ -147,8 +165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const canvas = await renderPage(page, 0.5, rotations[i-1]);
                 canvas.dataset.pageIndex = i - 1;
                 const wrapper = document.createElement('div');
-                wrapper.style.display = 'inline-block';
-                wrapper.style.margin = '10px';
+                wrapper.classList.add('reorder-item');
                 wrapper.appendChild(canvas);
                 // Botones dinámicos para rotate y zoom (idea propia)
                 const rotateBtn = document.createElement('button');
@@ -174,7 +191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             new Sortable(previewReorder, {
                 animation: 150,
-                handle: 'canvas', // Drag by canvas
+                handle: 'canvas', // Drag by canvas, mejor para mobile
             });
             saveSession('reorderState', { rotations });
         });
@@ -227,10 +244,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const rangeInput = document.getElementById('range-input');
     const selectRangeButton = document.getElementById('select-range');
     const removeBlanksButton = document.getElementById('remove-blanks');
-    const extractButton = document.getElementById('extract-pages'); // Nueva feature
+    const extractButton = document.getElementById('extract-pages');
     const saveEditedButton = document.getElementById('save-edited');
     const downloadEdited = document.getElementById('download-edited');
-    const protectButton = document.getElementById('protect-pdf'); // Premium feature
     let editPdfDoc;
     let selectedPages = new Set();
 
@@ -249,8 +265,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 canvas.dataset.pageNum = i;
                 canvas.addEventListener('click', () => toggleSelect(canvas, i-1));
                 const wrapper = document.createElement('div');
-                wrapper.style.display = 'inline-block';
-                wrapper.style.margin = '5px';
+                wrapper.classList.add('edit-item');
                 wrapper.appendChild(canvas);
                 // Añadir número de página
                 const pageNumSpan = document.createElement('span');
@@ -348,13 +363,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Premium feature: Protect PDF
-    if (protectButton) {
-        protectButton.addEventListener('click', () => {
-            alert('Función premium: Protección con contraseña próximamente disponible en la versión de pago.');
-        });
-    }
-
     // Preview simple - Usando visualizador nativo del navegador con embed
     const previewUpload = document.getElementById('pdf-upload-preview');
     const pdfPreview = document.getElementById('pdf-preview');
@@ -378,7 +386,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const renameUpload = document.getElementById('pdf-upload-rename');
     const renameButton = document.getElementById('rename-pdf');
     const downloadRenamed = document.getElementById('download-renamed');
-    const ocrButton = document.getElementById('ocr-pdf'); // Premium feature
 
     if (renameButton && renameUpload) {
         renameButton.addEventListener('click', async () => {
@@ -406,13 +413,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Premium feature: OCR
-    if (ocrButton) {
-        ocrButton.addEventListener('click', () => {
-            alert('Función premium: Extracción de texto vía OCR próximamente disponible en la versión de pago.');
-        });
-    }
-
     // Cargar sessions iniciales
-    renderMergeList();
+    await renderMergeList();
 });
