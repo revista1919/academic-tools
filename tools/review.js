@@ -143,6 +143,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+    // Función auxiliar para mediana
+    function median(arr) {
+        const copy = arr.slice().sort((a, b) => a - b);
+        const mid = Math.floor(copy.length / 2);
+        return copy.length % 2 ? copy[mid] : (copy[mid - 1] + copy[mid]) / 2;
+    }
     // Cargar archivo (TXT, MD, PDF, DOCX)
     if (fileUpload) {
         fileUpload.addEventListener('change', (e) => {
@@ -167,46 +173,62 @@ document.addEventListener('DOMContentLoaded', () => {
                         for (let i = 1; i <= pdf.numPages; i++) {
                             const page = await pdf.getPage(i);
                             const content = await page.getTextContent();
-                            // Group items into lines based on y-position
-                            const lines = {};
-                            for (const item of content.items) {
-                                if (item.str.trim() === '') continue; // Skip empty
+                            // Ordenar ítems por y descendente (top to bottom)
+                            const sortedItems = content.items.slice().sort((a, b) => b.transform[5] - a.transform[5]);
+                            // Cluster en líneas con tolerancia EPS
+                            const EPS = 2;
+                            let lines = [];
+                            let curLine = [];
+                            let curY = null;
+                            for (const item of sortedItems) {
                                 const y = item.transform[5];
-                                if (!lines[y]) lines[y] = [];
-                                lines[y].push(item);
-                            }
-                            // Sort items in each line by x-position
-                            for (const y in lines) {
-                                lines[y].sort((a, b) => a.transform[4] - b.transform[4]);
-                            }
-                            // Sort y positions descending (top to bottom, assuming y decreases down)
-                            const sortedY = Object.keys(lines).sort((a, b) => parseFloat(b) - parseFloat(a));
-                            let pageText = '';
-                            let lastY = null;
-                            let avgHeight = content.items.reduce((sum, item) => sum + item.height, 0) / content.items.length || 12;
-                            for (const y of sortedY) {
-                                const lineItems = lines[y];
-                                const lineText = lineItems.map(item => item.str).join(' ').trim();
-                                if (!lineText) continue;
-                                const currentY = parseFloat(y);
-                                if (lastY !== null) {
-                                    const gap = lastY - currentY; // Positive gap if moving down
-                                    if (gap > avgHeight * 1.5) {
-                                        pageText += '\n\n'; // Paragraph break
-                                    } else if (gap > 0.1) {
-                                        pageText += '\n'; // Line break
-                                    } else {
-                                        pageText += ' '; // Same line continuation if needed
-                                    }
+                                if (curY === null || Math.abs(y - curY) <= EPS) {
+                                    curLine.push(item);
+                                } else {
+                                    // Ordenar curLine por x
+                                    curLine.sort((a, b) => a.transform[4] - b.transform[4]);
+                                    lines.push({ baseline: curY, items: curLine });
+                                    curLine = [item];
+                                    curY = y;
                                 }
-                                pageText += lineText;
-                                lastY = currentY;
                             }
-                            text += pageText + '\n\n--- Page ' + i + ' ---\n\n'; // Separate pages clearly
+                            if (curLine.length) {
+                                curLine.sort((a, b) => a.transform[4] - b.transform[4]);
+                                lines.push({ baseline: curY, items: curLine });
+                            }
+                            // Calcular alturas de línea
+                            let lineHeights = [];
+                            for (let j = 0; j < lines.length - 1; j++) {
+                                lineHeights.push(lines[j].baseline - lines[j + 1].baseline);
+                            }
+                            const medianHeight = lineHeights.length ? median(lineHeights) : 12;
+                            const threshold = medianHeight * 1.5;
+                            // Construir texto con párrafos
+                            let pageText = '';
+                            let currentParagraph = '';
+                            for (let j = 0; j < lines.length; j++) {
+                                const line = lines[j];
+                                const lineText = line.items.map(item => item.str).join(' ').trim();
+                                if (!lineText) continue;
+                                const next = lines[j + 1];
+                                let gap = threshold + 1;
+                                if (next) gap = line.baseline - next.baseline;
+                                if (currentParagraph) {
+                                    currentParagraph += ' ' + lineText;
+                                } else {
+                                    currentParagraph = lineText;
+                                }
+                                if (gap > threshold) {
+                                    pageText += currentParagraph + '\n\n';
+                                    currentParagraph = '';
+                                }
+                            }
+                            if (currentParagraph) pageText += currentParagraph;
+                            text += pageText + '\n\n--- Página ' + i + ' ---\n\n';
                         }
                         paperText.value = text.trim();
                         saveToHistory(paperText.value);
-                        alert('PDF cargado con mejor detección de párrafos. Puedes editar el texto y usar las herramientas de análisis.');
+                        alert('PDF cargado con detección mejorada de párrafos. Puedes editar el texto y usar las herramientas de análisis.');
                     } catch (err) {
                         alert('Error al procesar el PDF: ' + err.message);
                     }
