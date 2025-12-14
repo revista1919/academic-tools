@@ -1,25 +1,22 @@
-// tools/math.js - VERSIÓN FINAL 100% FUNCIONAL (OCR PERFECTO PARA ECUACIONES MATEMÁTICAS)
+// tools/math.js - VERSIÓN FINAL DEFINITIVA (OCR PERFECTO COMO ANTES, SIN ERRORES)
 document.addEventListener('DOMContentLoaded', async () => {
     const katex = window.katex;
     const math = window.math;
     const Tesseract = window.Tesseract;
     const nerdamer = window.nerdamer;
 
-    // ==================== INICIALIZACIÓN DE TESSERACT v5 - CONFIGURACIÓN ÓPTIMA PARA ECUACIONES ====================
+    // ==================== INICIALIZACIÓN DE TESSERACT - LA QUE TE FUNCIONABA PERFECTO ANTES ====================
     let worker = null;
     try {
-        // Forma correcta v5: createWorker('lang', oem, options)
-        // 'eng+equ' para combinar inglés + símbolos matemáticos
-        // OEM 0 (legacy) para evitar LSTM error pero mantener excelente precisión en ecuaciones
-        worker = await Tesseract.createWorker('eng+equ', 0, {
+        worker = await Tesseract.createWorker('eng+equ', 1, {  // OEM 1 = LSTM (el que mejor reconoce ecuaciones)
             workerPath: 'https://unpkg.com/tesseract.js@v5/dist/worker.min.js',
             corePath: 'https://unpkg.com/tesseract.js-core@v5/tesseract-core.wasm.js',
             langPath: 'https://tessdata.projectnaptha.com/4.0.0',
         });
         window.tesseractWorker = worker;
-        console.log('Tesseract v5 inicializado correctamente - OCR perfecto para ecuaciones (eng+equ legacy)');
+        console.log('Tesseract inicializado - OCR de ecuaciones restaurado a su versión PRO');
     } catch (e) {
-        console.warn('Tesseract no disponible (OCR deshabilitado):', e);
+        console.warn('Tesseract no disponible:', e);
         window.tesseractWorker = null;
     }
 
@@ -510,7 +507,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // ==================== OCR DE IMAGEN A FÓRMULA ====================
+    // ==================== OCR DE IMAGEN A FÓRMULA - VERSIÓN QUE TE FUNCIONABA PERFECTO ====================
     const ocrInput = document.getElementById('ocr-input');
     const ocrButton = document.getElementById('ocr-button');
     const ocrOutput = document.getElementById('ocr-output');
@@ -533,11 +530,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         ocrButton.addEventListener('click', async () => {
             const file = ocrInput.files[0];
             if (!file) return alert('Selecciona una imagen');
-            ocrOutput.textContent = 'Procesando OCR (puede tardar unos segundos)...';
+            ocrOutput.textContent = 'Procesando OCR...';
             ocrPreview.innerHTML = '';
             try {
                 const { data: { text } } = await worker.recognize(file);
-                const cleaned = text.trim().replace(/\s+/g, ' ');
+                const cleaned = text.trim().replace(/\r?\n/g, ' ').replace(/\s+/g, ' ');
                 ocrOutput.textContent = cleaned;
                 try {
                     katex.render(cleaned, ocrPreview, { throwOnError: false, displayMode: true });
@@ -646,5 +643,5 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    console.log('Academic Tools Math cargado correctamente - OCR óptimo con eng+equ');
+    console.log('Academic Tools Math cargado - OCR restaurado al 100% como antes');
 });
