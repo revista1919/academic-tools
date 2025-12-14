@@ -5,17 +5,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const Chart = window.Chart;
     const Tesseract = window.Tesseract;
     const ComputeEngine = window.ComputeEngine;
-    const nerdamer = window.nerdamer; // Para resolver ecuaciones simbólicamente
+    const nerdamer = window.nerdamer;
 
     // ==================== INICIALIZACIÓN DE TESSERACT (OCR) - CORREGIDO PARA ECUACIONES ====================
-    // Usamos OEM 0 (legacy engine) para evitar error LSTM con 'equ'. Esto permite math recognition sin problemas.
-    // langPath apunta a tessdata_best para mejor precisión en equ.
     let worker = null;
     try {
-        worker = await Tesseract.createWorker('eng+equ', 0, {  // OEM 0 = legacy engine (sin LSTM)
+        worker = await Tesseract.createWorker('eng+equ', 0, {
             workerPath: 'https://unpkg.com/tesseract.js@v5/dist/worker.min.js',
             corePath: 'https://unpkg.com/tesseract.js-core@v5/tesseract-core.wasm.js',
-            langPath: 'https://github.com/tesseract-ocr/tessdata_best/raw/main/'  // tessdata_best para mejor precisión
+            langPath: 'https://github.com/tesseract-ocr/tessdata_best/raw/main/'
         });
         window.tesseractWorker = worker;
         console.log('Tesseract inicializado correctamente con soporte para ecuaciones (eng+equ, legacy engine)');
@@ -437,7 +435,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (mathField) {
         mathField.addEventListener('input', updateLatexPreview);
-        updateLatexPreview(); // Inicial
+        updateLatexPreview();
     }
 
     if (insertSymbol && mathField && symbolSelect) {
@@ -446,6 +444,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (sym) {
                 mathField.insert(sym);
                 mathField.focus();
+                updateLatexPreview();
             } else {
                 alert('Selecciona un símbolo');
             }
@@ -458,6 +457,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (temp) {
                 mathField.insert(temp);
                 mathField.focus();
+                updateLatexPreview();
             }
         });
     }
@@ -497,7 +497,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 tempDiv.style.cssText = 'position: absolute; left: -9999px; padding: 20px; background: transparent;';
                 document.body.appendChild(tempDiv);
                 katex.render(latex, tempDiv, { throwOnError: true, displayMode: true });
-                const katexEl = tempDiv.firstElementChild; // .katex
+                const katexEl = tempDiv.firstElementChild;
                 if (!katexEl) throw new Error('No se generó KaTeX');
                 const canvas = await html2canvas(katexEl, { scale: 2, backgroundColor: null, useCORS: true });
                 formulaCanvas.width = canvas.width;
@@ -623,7 +623,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (unitCategory) {
         unitCategory.addEventListener('change', () => populateUnits(unitCategory.value));
-        populateUnits('length'); // Default
+        populateUnits('length');
     }
 
     if (convertButton && unitResult && math) {
@@ -644,7 +644,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // ==================== SOLUCIONADOR DE ECUACIONES - MEJORADO CON NERDAMER ====================
+    // ==================== SOLUCIONADOR DE ECUACIONES ====================
     const equationInput = document.getElementById('equation-input');
     const solveButton = document.getElementById('solve-equation');
     const equationResult = document.getElementById('equation-result');
@@ -658,10 +658,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             try {
-                // Intentar resolver como ecuación simbólica con nerdamer
-                const solution = nerdamer.solve(expr, 'x');  // Asume variable 'x' por default
+                const solution = nerdamer.solve(expr, 'x');
                 if (solution === undefined || solution.toString() === 'false') {
-                    // Si no resuelve como ecuación, evaluar como expresión numérica con math.js
                     const result = math.evaluate(expr);
                     equationResult.innerHTML = `<strong>Evaluación: ${result.toString()}</strong><br><small>(No es ecuación resoluble simbólicamente)</small>`;
                 } else {
@@ -684,7 +682,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let chartInstance = null;
 
     if (plotButton && functionField && plotCanvas && ComputeEngine && Chart) {
-        // Estilos del canvas
         plotCanvas.style.width = '100%';
         plotCanvas.style.height = '400px';
         plotCanvas.style.border = '1px solid #ccc';
@@ -725,32 +722,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                 try {
                     expr = ce.parse(func);
                 } catch (e) {
-                    alert(`Error parseando "${func}": ${e.message}`);
+                    console.warn(`Error parseando "${func}":`, e);
                     return;
                 }
 
-                const data = [];
-                let hasPoints = false;
-
-                xValues.forEach(x => {
+                const yValues = xValues.map(x => {
                     try {
                         const val = expr.evaluate({ x: ce.number(x) });
                         const num = val.numericValue;
-                        if (isFinite(num)) {
-                            data.push({ x, y: num });
-                            hasPoints = true;
-                        } else {
-                            data.push({ x, y: null });
-                        }
+                        return isFinite(num) ? num : null;
                     } catch {
-                        data.push({ x, y: null });
+                        return null;
                     }
                 });
 
-                if (hasPoints) {
+                const validY = yValues.filter(y => y !== null);
+                if (validY.length > 0) {
                     datasets.push({
                         label: func,
-                        data,
+                        data: yValues,
                         borderColor: colors[idx % colors.length],
                         backgroundColor: colors[idx % colors.length] + '40',
                         fill: false,
@@ -762,7 +752,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             if (!validFunctions) {
-                alert('No se pudieron generar puntos válidos para ninguna función. Revisa la sintaxis (ej: sin(x), x^2)');
+                alert('No se pudieron generar puntos válidos. Prueba con "x^2" o "sin(x)"');
                 return;
             }
 
@@ -770,18 +760,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             chartInstance = new Chart(plotCanvas, {
                 type: 'line',
-                data: { datasets },
+                data: {
+                    labels: xValues,
+                    datasets
+                },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
                     scales: {
-                        x: { type: 'linear', title: { display: true, text: 'x' }, min: xMin, max: xMax },
-                        y: { title: { display: true, text: 'y' } }
+                        x: {
+                            type: 'linear',
+                            title: { display: true, text: 'x' },
+                            min: xMin,
+                            max: xMax
+                        },
+                        y: {
+                            title: { display: true, text: 'y' }
+                        }
                     },
                     plugins: {
                         title: { display: true, text: 'Gráfica de funciones' },
-                        legend: { display: true },
-                        zoom: { zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' }, pan: { enabled: true, mode: 'xy' } }
+                        legend: { display: true }
                     }
                 }
             });
@@ -792,5 +792,5 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    console.log('Academic Tools Math cargado correctamente - Versión completa con solver y OCR math');
+    console.log('Academic Tools Math cargado correctamente');
 });
