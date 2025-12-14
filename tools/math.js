@@ -2,12 +2,10 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const katex = window.katex;
     const math = window.math;
-    const Chart = window.Chart;
     const Tesseract = window.Tesseract;
-    const ComputeEngine = window.ComputeEngine;
     const nerdamer = window.nerdamer;
 
-    // ==================== INICIALIZACIÓN DE TESSERACT (OCR) - CORREGIDO PARA ECUACIONES ====================
+    // ==================== INICIALIZACIÓN DE TESSERACT (OCR) - CON SOPORTE PARA ECUACIONES ====================
     let worker = null;
     try {
         worker = await Tesseract.createWorker('eng+equ', 0, {
@@ -445,8 +443,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 mathField.insert(sym);
                 mathField.focus();
                 updateLatexPreview();
-            } else {
-                alert('Selecciona un símbolo');
             }
         });
     }
@@ -464,16 +460,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (copyLatex && mathField) {
         copyLatex.addEventListener('click', () => {
-            const latex = mathField.value;
-            if (!latex.trim()) {
+            const latex = mathField.value.trim();
+            if (!latex) {
                 alert('No hay LaTeX para copiar');
                 return;
             }
             navigator.clipboard.writeText(latex).then(() => {
                 alert('¡LaTeX copiado al portapapeles!');
-            }).catch(err => {
-                console.error('Error al copiar:', err);
-                alert('Error al copiar');
+            }).catch(() => {
+                alert('Error al copiar (permiso denegado)');
             });
         });
     }
@@ -482,8 +477,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const formulaButton = document.getElementById('formula-to-image');
     const formulaCanvas = document.getElementById('formula-canvas');
     const downloadImage = document.getElementById('download-image');
-    const colorSelect = document.getElementById('color-select');
-    const sizeSelect = document.getElementById('size-select');
 
     if (formulaButton && mathField && formulaCanvas && window.html2canvas && katex) {
         formulaButton.addEventListener('click', async () => {
@@ -494,30 +487,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             try {
                 const tempDiv = document.createElement('div');
-                tempDiv.style.cssText = 'position: absolute; left: -9999px; padding: 20px; background: transparent;';
+                tempDiv.style.cssText = 'position:absolute;left:-9999px;padding:30px;background:transparent;';
                 document.body.appendChild(tempDiv);
                 katex.render(latex, tempDiv, { throwOnError: true, displayMode: true });
                 const katexEl = tempDiv.firstElementChild;
-                if (!katexEl) throw new Error('No se generó KaTeX');
-                const canvas = await html2canvas(katexEl, { scale: 2, backgroundColor: null, useCORS: true });
+                const canvas = await html2canvas(katexEl, { scale: 3, backgroundColor: null });
                 formulaCanvas.width = canvas.width;
                 formulaCanvas.height = canvas.height;
-                const ctx = formulaCanvas.getContext('2d');
-                ctx.drawImage(canvas, 0, 0);
-                const dataUrl = formulaCanvas.toDataURL('image/png');
-                downloadImage.href = dataUrl;
+                formulaCanvas.getContext('2d').drawImage(canvas, 0, 0);
+                const url = canvas.toDataURL('image/png');
+                downloadImage.href = url;
                 downloadImage.download = 'formula.png';
-                downloadImage.textContent = 'Descargar PNG';
+                downloadImage.textContent = 'Descargar imagen PNG';
                 downloadImage.style.display = 'inline-block';
                 document.body.removeChild(tempDiv);
             } catch (e) {
-                console.error(e);
-                alert(`Error generando imagen: ${e.message}`);
+                alert('Error generando imagen: ' + e.message);
             }
         });
     }
 
-    // ==================== OCR ====================
+    // ==================== OCR DE IMAGEN A FÓRMULA ====================
     const ocrInput = document.getElementById('ocr-input');
     const ocrButton = document.getElementById('ocr-button');
     const ocrOutput = document.getElementById('ocr-output');
@@ -527,65 +517,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     const importOcrToEditor = document.getElementById('import-ocr-to-editor');
 
     if (ocrInput && ocrImagePreview) {
-        ocrInput.addEventListener('change', (e) => {
+        ocrInput.addEventListener('change', e => {
             const file = e.target.files[0];
             if (file) {
                 ocrImagePreview.src = URL.createObjectURL(file);
                 ocrImagePreview.style.display = 'block';
-                ocrImagePreview.alt = 'Vista previa de imagen';
             }
         });
     }
 
-    if (ocrButton && ocrOutput && worker) {
+    if (ocrButton && worker) {
         ocrButton.addEventListener('click', async () => {
-            const file = ocrInput?.files[0];
-            if (!file) {
-                alert('Selecciona una imagen primero');
-                return;
-            }
-            ocrOutput.textContent = 'Procesando OCR...';
+            const file = ocrInput.files[0];
+            if (!file) return alert('Selecciona una imagen');
+            ocrOutput.textContent = 'Procesando...';
             ocrPreview.innerHTML = '';
             try {
                 const { data: { text } } = await worker.recognize(file);
-                const cleanedText = text.trim().replace(/\s+/g, ' ');
-                ocrOutput.textContent = cleanedText;
-                if (cleanedText) {
-                    try {
-                        katex.render(cleanedText, ocrPreview, { throwOnError: false, displayMode: true });
-                    } catch (renderErr) {
-                        ocrPreview.innerHTML = `<span style="color:orange;">Texto extraído: ${cleanedText}<br>No se pudo renderizar como LaTeX (edita manualmente)</span>`;
-                    }
+                const cleaned = text.trim().replace(/\s+/g, ' ');
+                ocrOutput.textContent = cleaned;
+                try {
+                    katex.render(cleaned, ocrPreview, { throwOnError: false, displayMode: true });
+                } catch {
+                    ocrPreview.innerHTML = '<span style="color:orange;">No se pudo renderizar como LaTeX (edita manualmente)</span>';
                 }
             } catch (err) {
-                console.error('OCR error:', err);
-                ocrOutput.textContent = `Error en OCR: ${err.message}`;
+                ocrOutput.textContent = 'Error OCR: ' + err.message;
             }
         });
-    } else if (ocrButton) {
-        ocrButton.disabled = true;
-        ocrButton.textContent = 'OCR no disponible';
     }
 
     if (copyOcr && ocrOutput) {
         copyOcr.addEventListener('click', () => {
-            const text = ocrOutput.textContent;
-            if (!text || text.startsWith('Error') || text === 'Procesando OCR...') {
-                alert('No hay texto válido para copiar');
-                return;
-            }
-            navigator.clipboard.writeText(text).then(() => alert('Texto OCR copiado'));
+            navigator.clipboard.writeText(ocrOutput.textContent).then(() => alert('Texto copiado'));
         });
     }
 
     if (importOcrToEditor && mathField && ocrOutput) {
         importOcrToEditor.addEventListener('click', () => {
-            const text = ocrOutput.textContent;
-            if (!text || text.startsWith('Error')) {
-                alert('No hay texto válido para importar');
-                return;
-            }
-            mathField.value = text;
+            mathField.value = ocrOutput.textContent;
             mathField.focus();
             updateLatexPreview();
         });
@@ -606,16 +576,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         energy: ['joule', 'calorie', 'kwh']
     };
 
-    function populateUnits(category) {
-        const units = unitExamples[category] || [];
-        [unitFrom, unitTo].forEach(select => {
-            if (select) {
-                select.innerHTML = '';
+    function populateUnits(cat) {
+        const units = unitExamples[cat] || [];
+        [unitFrom, unitTo].forEach(s => {
+            if (s) {
+                s.innerHTML = '';
                 units.forEach(u => {
                     const opt = document.createElement('option');
                     opt.value = u;
                     opt.textContent = u.toUpperCase();
-                    select.appendChild(opt);
+                    s.appendChild(opt);
                 });
             }
         });
@@ -626,20 +596,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         populateUnits('length');
     }
 
-    if (convertButton && unitResult && math) {
+    if (convertButton && math) {
         convertButton.addEventListener('click', () => {
-            const valueStr = unitValue?.value.trim();
+            const val = unitValue?.value.trim();
             const from = unitFrom?.value;
             const to = unitTo?.value;
-            if (!valueStr || !from || !to) {
-                unitResult.textContent = 'Ingresa valor y selecciona unidades';
+            if (!val || !from || !to) {
+                unitResult.textContent = 'Completa todos los campos';
                 return;
             }
             try {
-                const result = math.evaluate(`${valueStr} ${from} to ${to}`);
-                unitResult.innerHTML = `<strong>${result.toPrecision(10)}</strong> ${to}`;
+                const result = math.evaluate(`${val} ${from} to ${to}`);
+                unitResult.innerHTML = `<strong>${result.toString()}</strong> ${to}`;
             } catch (e) {
-                unitResult.textContent = `Error: ${e.message}`;
+                unitResult.textContent = 'Error: ' + e.message;
             }
         });
     }
@@ -649,166 +619,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     const solveButton = document.getElementById('solve-equation');
     const equationResult = document.getElementById('equation-result');
 
-    if (solveButton && equationResult && nerdamer) {
+    if (solveButton && nerdamer) {
         solveButton.addEventListener('click', () => {
             const expr = equationInput?.value.trim();
             if (!expr) {
-                equationResult.textContent = 'Escribe una ecuación o expresión (ej: x^2 - 4 = 0, sin(x))';
+                equationResult.textContent = 'Escribe una expresión o ecuación';
                 return;
             }
-
             try {
                 const solution = nerdamer.solve(expr, 'x');
-                if (solution === undefined || solution.toString() === 'false') {
-                    const result = math.evaluate(expr);
-                    equationResult.innerHTML = `<strong>Evaluación: ${result.toString()}</strong><br><small>(No es ecuación resoluble simbólicamente)</small>`;
+                if (solution.toString() === '' || solution.toString() === 'false') {
+                    const evalResult = math.evaluate(expr);
+                    equationResult.innerHTML = `<strong>Resultado numérico:</strong> ${evalResult}`;
                 } else {
-                    equationResult.innerHTML = `<strong>Solución: ${solution.toString()}</strong>`;
+                    equationResult.innerHTML = `<strong>Solución:</strong> ${solution.toString()}`;
                 }
             } catch (e) {
-                equationResult.textContent = `Error: ${e.message}`;
+                equationResult.textContent = 'Error: ' + e.message;
             }
         });
     }
 
-    // ==================== GRAFICADOR DE FUNCIONES Y ECUACIONES ====================
-    const functionField = document.getElementById('function-field');
-    const xMinInput = document.getElementById('x-min');
-    const xMaxInput = document.getElementById('x-max');
-    const stepsInput = document.getElementById('steps');
-    const plotButton = document.getElementById('plot-function');
-    const plotCanvas = document.getElementById('plot-canvas');
-
-    let chartInstance = null;
-
-    if (plotButton && functionField && plotCanvas && ComputeEngine && Chart && nerdamer) {
-        plotCanvas.style.width = '100%';
-        plotCanvas.style.height = '400px';
-        plotCanvas.style.border = '1px solid #ccc';
-        plotCanvas.style.backgroundColor = '#fff';
-
-        plotButton.addEventListener('click', () => {
-            const rawFuncs = functionField.value.trim();
-            if (!rawFuncs) {
-                alert('Ingresa al menos una función o ecuación (ej: sin(x); x^2 + y^2 = 1)');
-                return;
-            }
-            const inputs = rawFuncs.split(';').map(f => f.trim()).filter(f => f);
-            if (inputs.length === 0) return;
-
-            const xMin = parseFloat(xMinInput?.value) || -10;
-            const xMax = parseFloat(xMaxInput?.value) || 10;
-            const steps = Math.max(50, parseInt(stepsInput?.value) || 200);
-
-            if (xMin >= xMax) {
-                alert('x Min debe ser menor que x Max');
-                return;
-            }
-
-            const step = (xMax - xMin) / steps;
-            const xValues = [];
-            for (let i = 0; i <= steps; i++) {
-                xValues.push(xMin + i * step);
-            }
-
-            const ce = new ComputeEngine.ComputeEngine();
-            const datasets = [];
-            const colors = ['#007bff', '#dc3545', '#28a745', '#ffc107', '#6f42c1', '#fd7e14', '#20c997'];
-
-            let validFunctions = false;
-
-            inputs.forEach((input, idx) => {
-                let funcsToPlot = [input]; // Por default, asumir función y = input
-
-                if (input.includes('=')) {
-                    try {
-                        const solutions = nerdamer.solve(input, 'y');
-                        if (solutions && solutions.toString().length > 0) {
-                            funcsToPlot = solutions.toString().split(',');
-                        } else {
-                            console.warn(`No se pudo resolver ecuación "${input}" para y.`);
-                            return;
-                        }
-                    } catch (e) {
-                        console.warn(`Error resolviendo ecuación "${input}":`, e);
-                        return;
-                    }
-                }
-
-                funcsToPlot.forEach((func, subIdx) => {
-                    let expr;
-                    try {
-                        expr = ce.parse(func.trim());
-                    } catch (e) {
-                        console.warn(`Error parseando "${func}":`, e);
-                        return;
-                    }
-
-                    const yValues = xValues.map(x => {
-                        try {
-                            const val = expr.evaluate({ x: ce.number(x) });
-                            const num = val.numericValue;
-                            return isFinite(num) ? num : null;
-                        } catch {
-                            return null;
-                        }
-                    });
-
-                    const validY = yValues.filter(y => y !== null);
-                    if (validY.length > 0) {
-                        datasets.push({
-                            label: `${input} (sol ${subIdx + 1})`,
-                            data: yValues,
-                            borderColor: colors[(idx + subIdx) % colors.length],
-                            backgroundColor: colors[(idx + subIdx) % colors.length] + '40',
-                            fill: false,
-                            tension: 0.1,
-                            pointRadius: 0
-                        });
-                        validFunctions = true;
-                    }
-                });
-            });
-
-            if (!validFunctions) {
-                alert('No se pudieron generar puntos válidos para ninguna función o ecuación. Revisa la sintaxis (ej: sin(x), x^2 + y^2 = 1)');
-                return;
-            }
-
-            if (chartInstance) chartInstance.destroy();
-
-            chartInstance = new Chart(plotCanvas, {
-                type: 'line',
-                data: { labels: xValues, datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    scales: {
-                        x: {
-                            type: 'linear',
-                            title: { display: true, text: 'x' },
-                            min: xMin,
-                            max: xMax
-                        },
-                        y: { title: { display: true, text: 'y' } }
-                    },
-                    plugins: {
-                        title: { display: true, text: 'Gráfica de funciones y ecuaciones' },
-                        legend: { display: true },
-                        zoom: {
-                            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' },
-                            pan: { enabled: true, mode: 'xy' }
-                        }
-                    }
-                }
-            });
-        });
-
-        if (functionField) {
-            functionField.setAttribute('placeholder', 'Ej: sin(x); x^2; x^2 + y^2 = 1');
-        }
-    }
-
-    console.log('Academic Tools Math cargado correctamente');
+    console.log('Academic Tools Math cargado correctamente (sin graficador)');
 });

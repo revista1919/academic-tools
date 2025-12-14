@@ -5,18 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Herramientas de Matemáticas y Ciencia Gratuitas - Academic Tools</title>
-    <meta name="description" content="Render LaTeX en tiempo real, fórmula a imagen, OCR de imágenes a fórmula, conversor de unidades, solucionador de ecuaciones y graficador de funciones. Procesado local.">
-    <meta name="keywords" content="render latex online, ocr math, editor ecuaciones, conversor unidades, solucionador ecuaciones, graficador funciones, herramientas para investigadores">
+    <meta name="description" content="Render LaTeX en tiempo real, fórmula a imagen, OCR de imágenes a fórmula, conversor de unidades, solucionador de ecuaciones. Procesado local.">
+    <meta name="keywords" content="render latex online, ocr math, editor ecuaciones, conversor unidades, solucionador ecuaciones, herramientas para investigadores">
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.0.0/math.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
     <script src="https://unpkg.com/tesseract.js@v5/dist/tesseract.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/mathlive"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@cortex-js/compute-engine@0.20.0/dist/compute-engine.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/nerdamer@latest/all.min.js"></script>
     <style>
         body {
@@ -70,7 +67,7 @@
         .virtual-keyboard {
             font-size: 18px;
         }
-        #plot-canvas, #formula-canvas {
+        #formula-canvas {
             width: 100% !important;
             height: auto !important;
             max-width: 100%;
@@ -103,6 +100,39 @@
             border-radius: 4px;
             display: none;
         }
+        .geogebra-recommendation {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 30px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .geogebra-recommendation h2 {
+            color: white;
+            margin-top: 0;
+        }
+        .geogebra-recommendation p {
+            font-size: 1.1em;
+            margin: 15px 0;
+        }
+        .geogebra-recommendation a {
+            display: inline-block;
+            background: white;
+            color: #2575fc;
+            padding: 12px 30px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+        .geogebra-recommendation a:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
         @media (max-width: 600px) {
             h1, h2 {
                 font-size: 1.5em;
@@ -114,6 +144,9 @@
             math-field {
                 height: 120px;
                 font-size: 18px;
+            }
+            .geogebra-recommendation {
+                padding: 20px;
             }
         }
     </style>
@@ -152,7 +185,7 @@
             <select id="symbol-select"></select>
             <button id="insert-symbol">Insertar Símbolo</button>
             <select id="template-select">
-                <option value="\\begin{pmatrix} a & b \\ c & d \\end{pmatrix}">Matriz 2x2</option>
+                <option value="\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}">Matriz 2x2</option>
                 <option value="\\int_{a}^{b} f(x) dx">Integral definida</option>
                 <option value="\\sum_{i=1}^{n} a_i">Suma</option>
                 <option value="\\lim_{x \\to \\infty}">Límite</option>
@@ -160,9 +193,9 @@
                 <option value="\\sqrt[ n ]{ x }">Raíz n-ésima</option>
                 <option value="a^{b}">Exponente</option>
                 <option value="\\log_{b} a">Logaritmo</option>
-                <option value="\\begin{cases} a & b \\ c & d \\end{cases}">Casos</option>
+                <option value="\\begin{cases} a & b \\\\ c & d \\end{cases}">Casos</option>
                 <option value="\\binom{n}{k}">Binomial</option>
-                <option value="\\begin{bmatrix} a & b \\ c & d \\end{bmatrix}">Matriz brackets</option>
+                <option value="\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix}">Matriz brackets</option>
                 <option value="\\frac{\\partial}{\\partial x}">Derivada parcial</option>
                 <option value="\\infty">Infinito</option>
                 <option value="\\vec{v}">Vector</option>
@@ -224,15 +257,16 @@
             <button id="solve-equation">Resolver</button>
             <div id="equation-result"></div>
         </section>
-        <section>
-            <h2>Graficador de Funciones y Ecuaciones Avanzado</h2>
-            <p>Grafica múltiples funciones o ecuaciones en LaTeX separadas por ;, con rango personalizado y zoom.</p>
-            <math-field id="function-field" placeholder="sin(x); x^{2}; x^2 + y^2 = 1"></math-field>
-            <label>x Min: <input type="number" id="x-min" value="-10"></label>
-            <label>x Max: <input type="number" id="x-max" value="10"></label>
-            <label>Pasos: <input type="number" id="steps" value="200" min="50"></label>
-            <button id="plot-function">Graficar</button>
-            <canvas id="plot-canvas"></canvas>
+
+        <!-- Recomendación de GeoGebra -->
+        <section class="geogebra-recommendation">
+            <h2>¿Necesitas graficar funciones o ecuaciones?</h2>
+            <p>La mejor herramienta gratuita y profesional para graficar, geometría, cálculo 3D y más es:</p>
+            <h1 style="margin: 15px 0; font-size: 2.2em;">GeoGebra</h1>
+            <p>Interactivo, potente, sin límites y completamente gratis.</p>
+            <a href="https://www.geogebra.org/graphing?lang=es" target="_blank">
+                Abrir GeoGebra → 
+            </a>
         </section>
     </main>
     <footer>
