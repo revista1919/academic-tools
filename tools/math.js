@@ -671,7 +671,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // ==================== GRAFICADOR DE FUNCIONES ====================
+    // ==================== GRAFICADOR DE FUNCIONES Y ECUACIONES ====================
     const functionField = document.getElementById('function-field');
     const xMinInput = document.getElementById('x-min');
     const xMaxInput = document.getElementById('x-max');
@@ -681,7 +681,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let chartInstance = null;
 
-    if (plotButton && functionField && plotCanvas && ComputeEngine && Chart) {
+    if (plotButton && functionField && plotCanvas && ComputeEngine && Chart && nerdamer) {
         plotCanvas.style.width = '100%';
         plotCanvas.style.height = '400px';
         plotCanvas.style.border = '1px solid #ccc';
@@ -690,11 +690,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         plotButton.addEventListener('click', () => {
             const rawFuncs = functionField.value.trim();
             if (!rawFuncs) {
-                alert('Ingresa al menos una función (ej: sin(x); x^2)');
+                alert('Ingresa al menos una función o ecuación (ej: sin(x); x^2 + y^2 = 1)');
                 return;
             }
-            const functions = rawFuncs.split(';').map(f => f.trim()).filter(f => f);
-            if (functions.length === 0) return;
+            const inputs = rawFuncs.split(';').map(f => f.trim()).filter(f => f);
+            if (inputs.length === 0) return;
 
             const xMin = parseFloat(xMinInput?.value) || -10;
             const xMax = parseFloat(xMaxInput?.value) || 10;
@@ -717,42 +717,61 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             let validFunctions = false;
 
-            functions.forEach((func, idx) => {
-                let expr;
-                try {
-                    expr = ce.parse(func);
-                } catch (e) {
-                    console.warn(`Error parseando "${func}":`, e);
-                    return;
+            inputs.forEach((input, idx) => {
+                let funcsToPlot = [input]; // Por default, asumir función y = input
+
+                if (input.includes('=')) {
+                    try {
+                        const solutions = nerdamer.solve(input, 'y');
+                        if (solutions && solutions.toString().length > 0) {
+                            funcsToPlot = solutions.toString().split(',');
+                        } else {
+                            console.warn(`No se pudo resolver ecuación "${input}" para y.`);
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn(`Error resolviendo ecuación "${input}":`, e);
+                        return;
+                    }
                 }
 
-                const yValues = xValues.map(x => {
+                funcsToPlot.forEach((func, subIdx) => {
+                    let expr;
                     try {
-                        const val = expr.evaluate({ x: ce.number(x) });
-                        const num = val.numericValue;
-                        return isFinite(num) ? num : null;
-                    } catch {
-                        return null;
+                        expr = ce.parse(func.trim());
+                    } catch (e) {
+                        console.warn(`Error parseando "${func}":`, e);
+                        return;
+                    }
+
+                    const yValues = xValues.map(x => {
+                        try {
+                            const val = expr.evaluate({ x: ce.number(x) });
+                            const num = val.numericValue;
+                            return isFinite(num) ? num : null;
+                        } catch {
+                            return null;
+                        }
+                    });
+
+                    const validY = yValues.filter(y => y !== null);
+                    if (validY.length > 0) {
+                        datasets.push({
+                            label: `${input} (sol ${subIdx + 1})`,
+                            data: yValues,
+                            borderColor: colors[(idx + subIdx) % colors.length],
+                            backgroundColor: colors[(idx + subIdx) % colors.length] + '40',
+                            fill: false,
+                            tension: 0.1,
+                            pointRadius: 0
+                        });
+                        validFunctions = true;
                     }
                 });
-
-                const validY = yValues.filter(y => y !== null);
-                if (validY.length > 0) {
-                    datasets.push({
-                        label: func,
-                        data: yValues,
-                        borderColor: colors[idx % colors.length],
-                        backgroundColor: colors[idx % colors.length] + '40',
-                        fill: false,
-                        tension: 0.1,
-                        pointRadius: 0
-                    });
-                    validFunctions = true;
-                }
             });
 
             if (!validFunctions) {
-                alert('No se pudieron generar puntos válidos. Prueba con "x^2" o "sin(x)"');
+                alert('No se pudieron generar puntos válidos para ninguna función o ecuación. Revisa la sintaxis (ej: sin(x), x^2 + y^2 = 1)');
                 return;
             }
 
@@ -760,10 +779,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             chartInstance = new Chart(plotCanvas, {
                 type: 'line',
-                data: {
-                    labels: xValues,
-                    datasets
-                },
+                data: { labels: xValues, datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -775,20 +791,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                             min: xMin,
                             max: xMax
                         },
-                        y: {
-                            title: { display: true, text: 'y' }
-                        }
+                        y: { title: { display: true, text: 'y' } }
                     },
                     plugins: {
-                        title: { display: true, text: 'Gráfica de funciones' },
-                        legend: { display: true }
+                        title: { display: true, text: 'Gráfica de funciones y ecuaciones' },
+                        legend: { display: true },
+                        zoom: {
+                            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' },
+                            pan: { enabled: true, mode: 'xy' }
+                        }
                     }
                 }
             });
         });
 
         if (functionField) {
-            functionField.setAttribute('placeholder', 'Ej: sin(x); x^2; cos(x)');
+            functionField.setAttribute('placeholder', 'Ej: sin(x); x^2; x^2 + y^2 = 1');
         }
     }
 
