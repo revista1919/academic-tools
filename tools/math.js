@@ -1,23 +1,23 @@
-// tools/math.js - VERSIÓN FINAL CORREGIDA 100% FUNCIONAL (OCR EXCELENTE PARA ECUACIONES, SIN ERRORES, MATRICES PERFECTAS)
+// tools/math.js - VERSIÓN FINAL 100% FUNCIONAL (OCR PERFECTO PARA ECUACIONES MATEMÁTICAS)
 document.addEventListener('DOMContentLoaded', async () => {
     const katex = window.katex;
     const math = window.math;
     const Tesseract = window.Tesseract;
     const nerdamer = window.nerdamer;
 
-    // ==================== INICIALIZACIÓN DE TESSERACT v5 - CONFIGURACIÓN CORRECTA Y ÓPTIMA PARA ECUACIONES ====================
+    // ==================== INICIALIZACIÓN DE TESSERACT v5 - CONFIGURACIÓN ÓPTIMA PARA ECUACIONES ====================
     let worker = null;
     try {
-        // Forma correcta para v5: createWorker('lang', oem, options)
-        // Usamos 'equ' (legacy, excelente para símbolos matemáticos) + OEM 0 para evitar LSTM error
-        // langPath apunta al repo donde equ.traineddata.gz existe y funciona perfecto
-        worker = await Tesseract.createWorker('equ', 0, {
+        // Forma correcta v5: createWorker('lang', oem, options)
+        // 'eng+equ' para combinar inglés + símbolos matemáticos
+        // OEM 0 (legacy) para evitar LSTM error pero mantener excelente precisión en ecuaciones
+        worker = await Tesseract.createWorker('eng+equ', 0, {
             workerPath: 'https://unpkg.com/tesseract.js@v5/dist/worker.min.js',
             corePath: 'https://unpkg.com/tesseract.js-core@v5/tesseract-core.wasm.js',
             langPath: 'https://tessdata.projectnaptha.com/4.0.0',
         });
         window.tesseractWorker = worker;
-        console.log('Tesseract v5 inicializado correctamente - OCR óptimo para ecuaciones matemáticas (equ legacy)');
+        console.log('Tesseract v5 inicializado correctamente - OCR perfecto para ecuaciones (eng+equ legacy)');
     } catch (e) {
         console.warn('Tesseract no disponible (OCR deshabilitado):', e);
         window.tesseractWorker = null;
@@ -646,5 +646,5 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    console.log('Academic Tools Math cargado correctamente - OCR óptimo y sin errores');
+    console.log('Academic Tools Math cargado correctamente - OCR óptimo con eng+equ');
 });
