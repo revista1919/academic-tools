@@ -167,11 +167,46 @@ document.addEventListener('DOMContentLoaded', () => {
                         for (let i = 1; i <= pdf.numPages; i++) {
                             const page = await pdf.getPage(i);
                             const content = await page.getTextContent();
-                            text += content.items.map(item => item.str).join(' ') + '\n';
+                            // Group items into lines based on y-position
+                            const lines = {};
+                            for (const item of content.items) {
+                                if (item.str.trim() === '') continue; // Skip empty
+                                const y = item.transform[5];
+                                if (!lines[y]) lines[y] = [];
+                                lines[y].push(item);
+                            }
+                            // Sort items in each line by x-position
+                            for (const y in lines) {
+                                lines[y].sort((a, b) => a.transform[4] - b.transform[4]);
+                            }
+                            // Sort y positions descending (top to bottom, assuming y decreases down)
+                            const sortedY = Object.keys(lines).sort((a, b) => parseFloat(b) - parseFloat(a));
+                            let pageText = '';
+                            let lastY = null;
+                            let avgHeight = content.items.reduce((sum, item) => sum + item.height, 0) / content.items.length || 12;
+                            for (const y of sortedY) {
+                                const lineItems = lines[y];
+                                const lineText = lineItems.map(item => item.str).join(' ').trim();
+                                if (!lineText) continue;
+                                const currentY = parseFloat(y);
+                                if (lastY !== null) {
+                                    const gap = lastY - currentY; // Positive gap if moving down
+                                    if (gap > avgHeight * 1.5) {
+                                        pageText += '\n\n'; // Paragraph break
+                                    } else if (gap > 0.1) {
+                                        pageText += '\n'; // Line break
+                                    } else {
+                                        pageText += ' '; // Same line continuation if needed
+                                    }
+                                }
+                                pageText += lineText;
+                                lastY = currentY;
+                            }
+                            text += pageText + '\n\n--- Page ' + i + ' ---\n\n'; // Separate pages clearly
                         }
-                        paperText.value = text;
-                        saveToHistory(text);
-                        alert('PDF cargado. Puedes editar el texto y usar las herramientas de análisis.');
+                        paperText.value = text.trim();
+                        saveToHistory(paperText.value);
+                        alert('PDF cargado con mejor detección de párrafos. Puedes editar el texto y usar las herramientas de análisis.');
                     } catch (err) {
                         alert('Error al procesar el PDF: ' + err.message);
                     }
