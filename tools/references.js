@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Sección Conversión entre estilos con parsing mejorado
+    // Sección Conversión entre estilos con parsing mejorado para texto plano
     const fromStyle = document.getElementById('from-style');
     const toStyle = document.getElementById('to-style');
     const convInput = document.getElementById('conv-input');
@@ -183,25 +183,60 @@ document.addEventListener('DOMContentLoaded', () => {
     const convertedRef = document.getElementById('converted-ref');
     const copyConvButton = document.getElementById('copy-conv');
 
-    // Parsers por estilo (mejorados con regex más flexibles)
+    // Parsers por estilo (ajustados para texto plano, más flexibles)
     const parsers = {
         apa: (input) => {
-            const match = input.match(/^(.*?) \((.*?)\)\. (.*?)(\. <i>(.*?)<\/i>,? ?(.*?)(\((.*?)\))?,? (.*?)\.?)? ?(https?:\/\/doi\.org\/(.*?)\.?)?$/);
-            if (match) return [match[1], match[2], match[3], match[5], match[6], match[8], match[9], match[11]]; // article
-            const bookMatch = input.match(/^(.*?) \((.*?)\)\. <i>(.*?)<\/i>(\. \((.*?) ed\.\))?(\. (.*?))?(\. https?:\/\/doi\.org\/(.*?)\.?)?$/);
-            if (bookMatch) return [bookMatch[1], bookMatch[2], bookMatch[3], bookMatch[7], bookMatch[5], bookMatch[9]]; // book
-            const webMatch = input.match(/^(.*?) \((.*?)\)\. (.*?)(\. <i>(.*?)<\/i>\.?)? (.*?)\.?$/);
-            if (webMatch) return [webMatch[1], webMatch[2], webMatch[3], webMatch[5], webMatch[6]]; // website
+            // Article
+            const matchArticle = input.match(/^(.*?) \((.*?)\)\. (.*?)\. (.*?), ?(.*?)(\((.*?)\))?, ?(.*?)\.? ?(https?:\/\/doi\.org\/(.*?)\.?)?$/);
+            if (matchArticle) {
+                return [matchArticle[1], matchArticle[2], matchArticle[3], matchArticle[4], matchArticle[5], matchArticle[7], matchArticle[8], matchArticle[10]];
+            }
+            // Book
+            const matchBook = input.match(/^(.*?) \((.*?)\)\. (.*?)(\. \((.*?) ed\.\))?(\. (.*?))?(\. https?:\/\/doi\.org\/(.*?)\.?)?$/);
+            if (matchBook) {
+                return [matchBook[1], matchBook[2], matchBook[3], matchBook[7], matchBook[5], matchBook[9]];
+            }
+            // Website
+            const matchWeb = input.match(/^(.*?) \((.*?)\)\. (.*?)\. (.*?). (.*?)\.?$/);
+            if (matchWeb) {
+                return [matchWeb[1], matchWeb[2], matchWeb[3], matchWeb[4], matchWeb[5]];
+            }
             return [];
         },
         chicago: (input) => {
-            const match = input.match(/^(.*?)(\. (.*?)\. ")?(.*?)"\.? ?(<i>(.*?)<\/i> ?(.*?)(, no\. (.*?))? ?(\((.*?)\))?)?,?( https?:\/\/doi\.org\/(.*?)\.?)?\.?$/);
-            if (match) return [match[1], match[3], match[4], match[6], match[7], match[9], match[11], match[13]]; // flexible
+            // Article (flexible)
+            const matchArticle = input.match(/^(.*?)\. (\d{4})\. "(.*?)\." (.*?) (\d+)(, no\. (\d+))? \((.*?)\): (.*?), ?(https?:\/\/doi\.org\/(.*?))\.?$/);
+            if (matchArticle) {
+                return [matchArticle[1], matchArticle[2], matchArticle[3], matchArticle[4], matchArticle[5], matchArticle[7], matchArticle[9], matchArticle[11]];
+            }
+            // Book
+            const matchBook = input.match(/^(.*?)\. (\d{4})\. (.*?)(\. (\d+ ed\.)?)? (.*?), ?(https?:\/\/doi\.org\/(.*?))\.?$/);
+            if (matchBook) {
+                return [matchBook[1], matchBook[2], matchBook[3], matchBook[6], matchBook[5]?.replace(' ed.', ''), matchBook[8]];
+            }
+            // Website
+            const matchWeb = input.match(/^(.*?)\. (\d{4})\. "(.*?)\." (.*?), (.*?)\.?$/);
+            if (matchWeb) {
+                return [matchWeb[1], matchWeb[2], matchWeb[3], matchWeb[4], matchWeb[5]];
+            }
             return [];
         },
         mla: (input) => {
-            const match = input.match(/^(.*?)(\. "?(.*?)")?\.? ?(<i>(.*?)<\/i>,? ?(vol\. (.*?),? ?)?(no\. (.*?),? ?)? ?(.*?),? ?(pp\. (.*?)\.? ?)?)?(DOI: (.*?)\.?)?$/);
-            if (match) return [match[1], match[3], match[5], match[8], match[10], match[11], match[13], match[15]]; // flexible
+            // Article
+            const matchArticle = input.match(/^(.*?)\. "(.*?)\." (.*?), vol\. (.*?), no\. (.*?), (.*?), pp\. (.*?)\. ?DOI: ?(.*?)\.?$/);
+            if (matchArticle) {
+                return [matchArticle[1], matchArticle[2], matchArticle[3], matchArticle[4], matchArticle[5], matchArticle[6], matchArticle[7], matchArticle[8]];
+            }
+            // Book
+            const matchBook = input.match(/^(.*?)\. (.*?)(\. (\d+ ed\.),?)? (.*?), (\d{4})\. ?(DOI: (.*?)\.?)?$/);
+            if (matchBook) {
+                return [matchBook[1], matchBook[2], matchBook[5], matchBook[4]?.replace(' ed.', ''), matchBook[6], matchBook[8]];
+            }
+            // Website
+            const matchWeb = input.match(/^(.*?)\. "(.*?)\." (.*?), (\d{4}), (.*?)\.?$/);
+            if (matchWeb) {
+                return [matchWeb[1], matchWeb[2], matchWeb[3], matchWeb[4], matchWeb[5]];
+            }
             return [];
         }
     };
@@ -213,13 +248,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const from = fromStyle.value;
             let parts = parsers[from](input);
             if (parts.length < 5) { // Mínimo para website
-                convertedRef.innerHTML = '<span class="error">Error al parsear la referencia de origen.</span>';
+                convertedRef.innerHTML = '<span class="error">Error al parsear la referencia de origen. Asegúrate de que el formato sea correcto sin etiquetas HTML.</span>';
                 return;
             }
             const to = toStyle.value;
             // Inferir tipo basado en parts
             let type = 'article';
-            if (parts.length <= 6 && !parts[3]) type = 'book';
+            if (parts.length <= 6 && !parts[3]) type = 'book'; // Ajustado
             if (parts.length === 5) type = 'website';
             if (formatters[to][type]) {
                 convertedRef.innerHTML = formatters[to][type](parts);
@@ -232,6 +267,136 @@ document.addEventListener('DOMContentLoaded', () => {
     if (copyConvButton) {
         copyConvButton.addEventListener('click', () => {
             if (convertedRef.innerHTML) copyToClipboard(convertedRef.innerHTML);
+        });
+    }
+
+    // Nueva sección: Generar desde DOI, ISBN o Link
+    const metadataInput = document.getElementById('metadata-input');
+    const metadataStyle = document.getElementById('metadata-style');
+    const fetchButton = document.getElementById('fetch-metadata');
+    const generatedRef = document.getElementById('generated-ref');
+    const copyGenerated = document.getElementById('copy-generated');
+
+    function formatAuthors(authors) {
+        if (!authors || authors.length === 0) return '';
+        const formatted = authors.map(a => {
+            const givenInitial = a.given ? a.given.split(' ').map(g => g[0] + '.').join(' ') : '';
+            return `${a.family}, ${givenInitial}`.trim();
+        });
+        if (formatted.length > 20) {
+            return formatted[0] + ' et al.';
+        } else if (formatted.length > 2) {
+            return formatted.slice(0, -1).join(', ') + ', & ' + formatted[formatted.length - 1];
+        } else if (formatted.length === 2) {
+            return formatted.join(' & ');
+        } else {
+            return formatted[0];
+        }
+    }
+
+    async function fetchMetadata(input) {
+        input = input.trim();
+        let doiMatch = input.match(/^(?:https?:\/\/doi\.org\/)?(.+)$/);
+        if (doiMatch && doiMatch[1].startsWith('10.')) {
+            return await fetchFromDoi(doiMatch[1]);
+        } else if (/^(?:\d{10}|\d{13}|978\d{10}|979\d{10})$/.test(input.replace(/-/g, ''))) {
+            return await fetchFromIsbn(input.replace(/-/g, ''));
+        } else if (input.startsWith('http')) {
+            // Intentar como URL general (puede fallar por CORS)
+            try {
+                const res = await fetch(input);
+                const html = await res.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const title = doc.querySelector('title')?.textContent || '';
+                const author = doc.querySelector('meta[name="author"]')?.content || 'Autor desconocido';
+                const date = doc.querySelector('meta[name="date"]')?.content || new Date().getFullYear();
+                const siteName = new URL(input).hostname;
+                return {
+                    refType: 'website',
+                    parts: [author, date, title, siteName, input]
+                };
+            } catch (e) {
+                throw new Error('No se pudo fetch la URL debido a restricciones CORS o error de red. Usa campos manuales para sitios web.');
+            }
+        } else {
+            throw new Error('Formato no reconocido. Prueba con DOI (ej: 10.1234/abc), ISBN (ej: 9780140449136) o URL completa.');
+        }
+    }
+
+    async function fetchFromDoi(doi) {
+        const res = await fetch(`https://api.crossref.org/works/${doi}`);
+        if (!res.ok) throw new Error('Error al fetch DOI: ' + res.statusText);
+        const data = await res.json();
+        const msg = data.message;
+        let refType;
+        if (msg.type === 'journal-article') refType = 'article';
+        else if (msg.type.includes('book')) refType = 'book';
+        else throw new Error('Tipo de referencia no soportado: ' + msg.type);
+        const authors = formatAuthors(msg.author || []);
+        const year = msg.published?.['date-parts']?.[0]?.[0] || msg.issued['date-parts'][0][0] || '';
+        const title = msg.title?.[0] || '';
+        let parts;
+        if (refType === 'article') {
+            const journal = msg['container-title']?.[0] || '';
+            const volume = msg.volume || '';
+            const issue = msg.issue || '';
+            const pages = msg.page || '';
+            parts = [authors, year, title, journal, volume, issue, pages, doi];
+        } else if (refType === 'book') {
+            const publisher = msg.publisher || '';
+            const edition = msg.edition_number || '';
+            parts = [authors, year, title, publisher, edition, doi];
+        }
+        return { refType, parts };
+    }
+
+    async function fetchFromIsbn(isbn) {
+        const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+        if (!res.ok) throw new Error('Error al fetch ISBN: ' + res.statusText);
+        const data = await res.json();
+        if (data.totalItems === 0) throw new Error('No se encontró el libro con ese ISBN.');
+        const item = data.items[0].volumeInfo;
+        const authors = item.authors ? formatAuthors(item.authors.map(a => ({ family: a.split(' ').pop(), given: a.split(' ').slice(0, -1).join(' ') }))) : 'Autor desconocido';
+        const year = item.publishedDate?.split('-')[0] || '';
+        const title = item.title || '';
+        const publisher = item.publisher || '';
+        const edition = ''; // No siempre disponible en API
+        let doi = '';
+        if (item.industryIdentifiers) {
+            const doiId = item.industryIdentifiers.find(id => id.type === 'DOI');
+            if (doiId) doi = doiId.identifier;
+        }
+        const parts = [authors, year, title, publisher, edition, doi];
+        return { refType: 'book', parts };
+    }
+
+    if (fetchButton) {
+        fetchButton.addEventListener('click', async () => {
+            const input = metadataInput.value.trim();
+            const style = metadataStyle.value;
+            if (!input) return;
+            fetchButton.disabled = true;
+            fetchButton.textContent = 'Cargando...';
+            try {
+                const { refType, parts } = await fetchMetadata(input);
+                if (formatters[style][refType]) {
+                    generatedRef.innerHTML = formatters[style][refType](parts);
+                } else {
+                    generatedRef.innerHTML = '<span class="error">Tipo no soportado para el estilo seleccionado.</span>';
+                }
+            } catch (e) {
+                generatedRef.innerHTML = `<span class="error">${e.message}</span>`;
+            } finally {
+                fetchButton.disabled = false;
+                fetchButton.textContent = 'Generar';
+            }
+        });
+    }
+
+    if (copyGenerated) {
+        copyGenerated.addEventListener('click', () => {
+            if (generatedRef.innerHTML) copyToClipboard(generatedRef.innerHTML);
         });
     }
 
@@ -387,13 +552,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Normalizar puntuación y espacios
             text = text.replace(/\s+/g, ' ').replace(/([.,:;])/g, '$1 ').replace(/\s+/g, ' ');
             // Intentar extraer parts con regex más inteligente
-            const articleMatch = text.match(/(.*?)(?:,| et al\.)? ?\(?(\d{4})\)?\.? ?(.*?)(\. )?<i>(.*?)<\/i>?,? ?(\d+)?(\(\d+\))?,? ?(\d+-\d+|\d+)?\.? ?(https?:\/\/doi\.org\/(.*))?$/i);
+            const articleMatch = text.match(/(.*?)(?:,| et al\.)? ?\(?(\d{4})\)?\.? ?(.*?)(\. )?(.*?) ?,? ?(\d+)?(\(\d+\))?,? ?(\d+-\d+|\d+)?\.? ?(https?:\/\/doi\.org\/(.*))?$/i);
             if (articleMatch) {
                 const parts = [articleMatch[1].trim(), articleMatch[2], articleMatch[3].trim(), articleMatch[5], articleMatch[6], articleMatch[7]?.replace('(', '')?.replace(')', ''), articleMatch[8], articleMatch[10]];
                 cleanedRef.innerHTML = parts.filter(p => p).join(' | ');
                 return;
             }
-            const bookMatch = text.match(/(.*?)(?:,| et al\.)? ?\(?(\d{4})\)?\.? ?<i>(.*?)<\/i>\.? ?(\d+ ed\.)? ?(.*?)\.? ?(https?:\/\/doi\.org\/(.*))?$/i);
+            const bookMatch = text.match(/(.*?)(?:,| et al\.)? ?\(?(\d{4})\)?\.? ?(.*?) \.? ?(\d+ ed\.)? ?(.*?)\.? ?(https?:\/\/doi\.org\/(.*))?$/i);
             if (bookMatch) {
                 const parts = [bookMatch[1].trim(), bookMatch[2], bookMatch[3].trim(), bookMatch[5], bookMatch[4]?.replace(' ed.', ''), bookMatch[7]];
                 cleanedRef.innerHTML = parts.filter(p => p).join(' | ');

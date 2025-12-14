@@ -45,7 +45,7 @@
         </section>
         <section>
             <h2>Conversión entre Estilos</h2>
-            <p>Convierte una referencia formateada de un estilo a otro. Soporta artículos, libros y sitios web.</p>
+            <p>Convierte una referencia formateada de un estilo a otro. Soporta artículos, libros y sitios web. Pega texto plano sin HTML.</p>
             <select id="from-style">
                 <option value="apa">De APA</option>
                 <option value="chicago">De Chicago</option>
@@ -56,10 +56,23 @@
                 <option value="chicago">A Chicago</option>
                 <option value="mla">A MLA</option>
             </select>
-            <textarea id="conv-input" placeholder="Pega referencia formateada..."></textarea>
+            <textarea id="conv-input" placeholder="Pega referencia formateada en texto plano..."></textarea>
             <button id="convert-style">Convertir</button>
             <div id="converted-ref"></div>
             <button id="copy-conv">Copiar</button>
+        </section>
+        <section>
+            <h2>Generar Cita desde DOI, ISBN o Link</h2>
+            <p>Ingresa un DOI, ISBN o URL para rastrear metadatos automáticamente y generar la cita. Para URLs generales, puede fallar si el sitio no permite acceso (CORS).</p>
+            <input id="metadata-input" type="text" placeholder="Ej: 10.1038/nature1234 o 9780140449136 o https://example.com">
+            <select id="metadata-style">
+                <option value="apa">APA</option>
+                <option value="chicago">Chicago</option>
+                <option value="mla">MLA</option>
+            </select>
+            <button id="fetch-metadata">Generar</button>
+            <div id="generated-ref"></div>
+            <button id="copy-generated">Copiar</button>
         </section>
         <section>
             <h2>Generador de Bibliografía</h2>
@@ -92,7 +105,7 @@
         </section>
     </main>
     <footer>
-        <p>Academic Tools - Gratuito y ético. Nada de lo que escribes o subes sale de tu computador.</p>
+        <p>Academic Tools - Gratuito y ético. Nada de lo que escribes o subes sale de tu computador (excepto fetches a APIs públicas para metadatos).</p>
     </footer>
     <script src="app.js"></script>
     <script src="tools/references.js"></script>
