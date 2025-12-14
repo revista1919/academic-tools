@@ -113,6 +113,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                     renderMergeList();
                 });
                 item.appendChild(removeBtn);
+                // Botones up/down para reordenar en mobile
+                const upBtn = document.createElement('button');
+                upBtn.textContent = '↑';
+                upBtn.addEventListener('click', () => {
+                    if (i > 0) {
+                        [mergeFiles[i - 1], mergeFiles[i]] = [mergeFiles[i], mergeFiles[i - 1]];
+                        saveSession('mergeFiles', mergeFiles.map(f => ({ name: f.name, size: f.size })));
+                        renderMergeList();
+                    }
+                });
+                item.appendChild(upBtn);
+                const downBtn = document.createElement('button');
+                downBtn.textContent = '↓';
+                downBtn.addEventListener('click', () => {
+                    if (i < mergeFiles.length - 1) {
+                        [mergeFiles[i], mergeFiles[i + 1]] = [mergeFiles[i + 1], mergeFiles[i]];
+                        saveSession('mergeFiles', mergeFiles.map(f => ({ name: f.name, size: f.size })));
+                        renderMergeList();
+                    }
+                });
+                item.appendChild(downBtn);
                 // Agregar handle para drag
                 const dragHandle = document.createElement('span');
                 dragHandle.classList.add('drag-handle');
@@ -124,7 +145,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 animation: 150,
                 handle: '.drag-handle', // Mejor UX con handle dedicado
                 touchStartThreshold: 5, // Mejor para mobile
-                fallbackTolerance: 3
+                fallbackTolerance: 3,
+                onEnd: (evt) => {
+                    const oldIndex = evt.oldIndex;
+                    const newIndex = evt.newIndex;
+                    if (oldIndex !== newIndex) {
+                        const [moved] = mergeFiles.splice(oldIndex, 1);
+                        mergeFiles.splice(newIndex, 0, moved);
+                        saveSession('mergeFiles', mergeFiles.map(f => ({ name: f.name, size: f.size })));
+                    }
+                }
             });
         }
     }
