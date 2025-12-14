@@ -41,8 +41,12 @@
             <div id="live-preview" class="preview"></div>
             <button id="format-ref">Formatear Final</button>
             <div id="formatted-ref"></div>
-            <button id="copy-single">Copiar</button>
+            <div class="button-group">
+                <button id="copy-single">Copiar</button>
+                <!-- El botón de BibTeX se insertará aquí dinámicamente -->
+            </div>
         </section>
+
         <section>
             <h2>Conversión entre Estilos</h2>
             <p>Convierte una referencia formateada de un estilo a otro. Soporta artículos, libros y sitios web. Pega texto plano sin HTML.</p>
@@ -59,11 +63,15 @@
             <textarea id="conv-input" placeholder="Pega referencia formateada en texto plano..."></textarea>
             <button id="convert-style">Convertir</button>
             <div id="converted-ref"></div>
-            <button id="copy-conv">Copiar</button>
+            <div class="button-group">
+                <button id="copy-conv">Copiar</button>
+                <!-- El botón de BibTeX se insertará aquí dinámicamente -->
+            </div>
         </section>
+
         <section>
             <h2>Generar Cita desde DOI, ISBN o Link</h2>
-            <p>Ingresa un DOI, ISBN o URL para rastrear metadatos automáticamente y generar la cita. Para URLs generales, puede fallar si el sitio no permite acceso (CORS).</p>
+            <p>Ingresa un DOI, ISBN o URL para rastrear metadatos automáticamente y generar la cita. Ahora con mejor soporte para URLs y exportación BibTeX.</p>
             <input id="metadata-input" type="text" placeholder="Ej: 10.1038/nature1234 o 9780140449136 o https://example.com">
             <select id="metadata-style">
                 <option value="apa">APA</option>
@@ -72,29 +80,50 @@
             </select>
             <button id="fetch-metadata">Generar</button>
             <div id="generated-ref"></div>
-            <button id="copy-generated">Copiar</button>
+            <div class="button-group">
+                <button id="copy-generated">Copiar</button>
+                <!-- El botón de BibTeX se insertará aquí dinámicamente -->
+            </div>
         </section>
+
         <section>
             <h2>Generador de Bibliografía</h2>
-            <p>Genera una bibliografía dinámica. Agrega entradas, edita y ordena.</p>
-            <button id="add-ref">Agregar Referencia</button>
-            <input type="file" id="import-bib" accept=".txt" style="display: inline-block;">
+            <p>Genera una bibliografía dinámica. Agrega entradas manualmente o directamente desde DOI/ISBN/URL, edita y ordena.</p>
+            
+            <div class="bib-controls">
+                <button id="add-ref">Agregar Referencia Manual</button>
+                <input type="file" id="import-bib" accept=".txt" style="display: inline-block;">
+                
+                <!-- Nuevo: agregar desde metadatos directamente a la lista -->
+                <input id="bib-metadata-input" type="text" placeholder="DOI, ISBN o URL para agregar a la bibliografía">
+                <button id="add-from-metadata">Agregar desde Metadata</button>
+            </div>
+
             <div id="bib-list-container"></div>
-            <select id="bib-style">
-                <option value="apa">APA</option>
-                <option value="chicago">Chicago</option>
-                <option value="mla">MLA</option>
-            </select>
-            <select id="sort-select">
-                <option value="author">Ordenar por Autor</option>
-                <option value="year">Ordenar por Año</option>
-                <option value="title">Ordenar por Título</option>
-            </select>
-            <button id="generate-bib">Generar Bibliografía</button>
+
+            <div class="bib-options">
+                <select id="bib-style">
+                    <option value="apa">APA</option>
+                    <option value="chicago">Chicago</option>
+                    <option value="mla">MLA</option>
+                </select>
+                <select id="sort-select">
+                    <option value="author">Ordenar por Autor</option>
+                    <option value="year">Ordenar por Año</option>
+                    <option value="title">Ordenar por Título</option>
+                </select>
+                <button id="generate-bib">Generar Bibliografía</button>
+            </div>
+
             <div id="bib-output"></div>
-            <button id="export-bib">Exportar a TXT</button>
-            <button id="copy-bib">Copiar Todo</button>
+
+            <div class="button-group">
+                <button id="export-bib">Exportar a TXT</button>
+                <button id="export-bibtex">Exportar a BibTeX (.bib)</button>
+                <button id="copy-bib">Copiar Todo</button>
+            </div>
         </section>
+
         <section>
             <h2>Limpieza de Referencias</h2>
             <p>Limpia referencias mal copiadas, eliminando ruido y extrayendo campos si posible.</p>

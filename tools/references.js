@@ -78,6 +78,47 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Formatters para BibTeX
+    const bibtexFormatters = {
+        article: (parts) => {
+            const [author, year, title, journal, volume, issue, pages, doi] = parts;
+            const key = `${author.split(', ')[0].toLowerCase().replace(/\W/g, '')}${year}`;
+            return `@article{${key},
+  author = {${author.replace(/ & /g, ' and ').replace(/, /g, ' and ')}},
+  title = {${title}},
+  journal = {${journal}},
+  volume = {${volume}},
+  number = {${issue}},
+  pages = {${pages}},
+  year = {${year}}${doi ? `,
+  doi = {${doi}}` : ''}
+}`;
+        },
+        book: (parts) => {
+            const [author, year, title, publisher, edition, doi] = parts;
+            const key = `${author.split(', ')[0].toLowerCase().replace(/\W/g, '')}${year}`;
+            return `@book{${key},
+  author = {${author.replace(/ & /g, ' and ').replace(/, /g, ' and ')}},
+  title = {${title}},
+  publisher = {${publisher}}${edition ? `,
+  edition = {${edition}}` : ''},
+  year = {${year}}${doi ? `,
+  doi = {${doi}}` : ''}
+}`;
+        },
+        website: (parts) => {
+            const [author, year, title, siteName, url] = parts;
+            const key = `${author.split(', ')[0].toLowerCase().replace(/\W/g, '')}${year}`;
+            return `@misc{${key},
+  author = {${author.replace(/ & /g, ' and ').replace(/, /g, ' and ')}},
+  title = {${title}},
+  howpublished = {\\url{${url}}},
+  year = {${year}},
+  note = {${siteName}}
+}`;
+        }
+    };
+
     // Campos por tipo de referencia
     const refFields = {
         article: ['Autor', 'Año', 'Título', 'Journal', 'Volumen', 'Número', 'Páginas', 'DOI'],
@@ -103,6 +144,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }).catch(() => {
             alert('Error al copiar.');
         });
+    }
+
+    // Función para descargar BibTeX
+    function downloadBibtex(bibtex, filename = 'reference.bib') {
+        const blob = new Blob([bibtex], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
     // Sección Formateador single con campos dinámicos y preview live
@@ -163,6 +215,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const type = refTypeSelect.value;
             if (validateParts(parts, type)) {
                 formattedRef.innerHTML = formatters[style][type](parts);
+                const bibtex = bibtexFormatters[type](parts);
+                let downloadBtn = document.getElementById('download-bibtex-single');
+                if (!downloadBtn) {
+                    downloadBtn = document.createElement('button');
+                    downloadBtn.id = 'download-bibtex-single';
+                    downloadBtn.textContent = 'Descargar BibTeX';
+                    copySingleButton.parentNode.insertBefore(downloadBtn, copySingleButton.nextSibling);
+                }
+                downloadBtn.style.display = 'block';
+                downloadBtn.onclick = () => downloadBibtex(bibtex);
             } else {
                 formattedRef.innerHTML = '<span class="error">Entrada inválida. Verifica los campos requeridos.</span>';
             }
@@ -258,6 +320,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (parts.length === 5) type = 'website';
             if (formatters[to][type]) {
                 convertedRef.innerHTML = formatters[to][type](parts);
+                const bibtex = bibtexFormatters[type](parts);
+                let downloadBtn = document.getElementById('download-bibtex-conv');
+                if (!downloadBtn) {
+                    downloadBtn = document.createElement('button');
+                    downloadBtn.id = 'download-bibtex-conv';
+                    downloadBtn.textContent = 'Descargar BibTeX';
+                    copyConvButton.parentNode.insertBefore(downloadBtn, copyConvButton.nextSibling);
+                }
+                downloadBtn.style.display = 'block';
+                downloadBtn.onclick = () => downloadBibtex(bibtex);
             } else {
                 convertedRef.innerHTML = '<span class="error">Tipo de referencia no soportado para conversión.</span>';
             }
@@ -270,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Nueva sección: Generar desde DOI, ISBN o Link
+    // Nueva sección: Generar desde DOI, ISBN o Link (mejorado)
     const metadataInput = document.getElementById('metadata-input');
     const metadataStyle = document.getElementById('metadata-style');
     const fetchButton = document.getElementById('fetch-metadata');
@@ -302,32 +374,16 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (/^(?:\d{10}|\d{13}|978\d{10}|979\d{10})$/.test(input.replace(/-/g, ''))) {
             return await fetchFromIsbn(input.replace(/-/g, ''));
         } else if (input.startsWith('http')) {
-            // Intentar como URL general (puede fallar por CORS)
-            try {
-                const res = await fetch(input);
-                const html = await res.text();
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const title = doc.querySelector('title')?.textContent || '';
-                const author = doc.querySelector('meta[name="author"]')?.content || 'Autor desconocido';
-                const date = doc.querySelector('meta[name="date"]')?.content || new Date().getFullYear();
-                const siteName = new URL(input).hostname;
-                return {
-                    refType: 'website',
-                    parts: [author, date, title, siteName, input]
-                };
-            } catch (e) {
-                throw new Error('No se pudo fetch la URL debido a restricciones CORS o error de red. Usa campos manuales para sitios web.');
-            }
+            return await fetchFromUrl(input);
         } else {
             throw new Error('Formato no reconocido. Prueba con DOI (ej: 10.1234/abc), ISBN (ej: 9780140449136) o URL completa.');
         }
     }
 
     async function fetchFromDoi(doi) {
-        const res = await fetch(`https://api.crossref.org/works/${doi}`);
-        if (!res.ok) throw new Error('Error al fetch DOI: ' + res.statusText);
-        const data = await res.json();
+        const jsonRes = await fetch(`https://api.crossref.org/works/${doi}`);
+        if (!jsonRes.ok) throw new Error('Error al obtener DOI: ' + jsonRes.statusText);
+        const data = await jsonRes.json();
         const msg = data.message;
         let refType;
         if (msg.type === 'journal-article') refType = 'article';
@@ -348,12 +404,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const edition = msg.edition_number || '';
             parts = [authors, year, title, publisher, edition, doi];
         }
-        return { refType, parts };
+        let bibtex = '';
+        const bibRes = await fetch(`https://api.crossref.org/works/${doi}/transform/application/x-bibtex`);
+        if (bibRes.ok) {
+            bibtex = await bibRes.text();
+        } else {
+            bibtex = bibtexFormatters[refType](parts);
+        }
+        return { refType, parts, bibtex };
     }
 
     async function fetchFromIsbn(isbn) {
+        isbn = isbn.replace(/-/g, '');
         const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
-        if (!res.ok) throw new Error('Error al fetch ISBN: ' + res.statusText);
+        if (!res.ok) throw new Error('Error al obtener ISBN: ' + res.statusText);
         const data = await res.json();
         if (data.totalItems === 0) throw new Error('No se encontró el libro con ese ISBN.');
         const item = data.items[0].volumeInfo;
@@ -368,7 +432,35 @@ document.addEventListener('DOMContentLoaded', () => {
             if (doiId) doi = doiId.identifier;
         }
         const parts = [authors, year, title, publisher, edition, doi];
-        return { refType: 'book', parts };
+        const bibtex = bibtexFormatters['book'](parts);
+        return { refType: 'book', parts, bibtex };
+    }
+
+    async function fetchFromUrl(url) {
+        try {
+            const res = await fetch(url);
+            const html = await res.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const title = doc.querySelector('meta[property="og:title"]')?.content ||
+                          doc.querySelector('meta[name="twitter:title"]')?.content ||
+                          doc.querySelector('title')?.textContent || '';
+            const author = doc.querySelector('meta[name="author"]')?.content ||
+                           doc.querySelector('meta[property="og:author"]')?.content ||
+                           doc.querySelector('meta[name="twitter:creator"]')?.content || 'Autor desconocido';
+            const year = doc.querySelector('meta[property="og:published_time"]')?.content?.slice(0,4) ||
+                         doc.querySelector('meta[name="date"]')?.content?.slice(0,4) ||
+                         doc.querySelector('meta[property="article:published_time"]')?.content?.slice(0,4) ||
+                         new Date().getFullYear().toString();
+            const siteName = doc.querySelector('meta[property="og:site_name"]')?.content ||
+                             doc.querySelector('meta[name="twitter:site"]')?.content ||
+                             new URL(url).hostname;
+            const parts = [author, year, title, siteName, url];
+            const bibtex = bibtexFormatters['website'](parts);
+            return { refType: 'website', parts, bibtex };
+        } catch (e) {
+            throw new Error('No se pudo obtener los metadatos de la URL debido a restricciones CORS o error de red. Usa los campos manuales para sitios web.');
+        }
     }
 
     if (fetchButton) {
@@ -379,9 +471,18 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchButton.disabled = true;
             fetchButton.textContent = 'Cargando...';
             try {
-                const { refType, parts } = await fetchMetadata(input);
+                const { refType, parts, bibtex } = await fetchMetadata(input);
                 if (formatters[style][refType]) {
                     generatedRef.innerHTML = formatters[style][refType](parts);
+                    let downloadBtn = document.getElementById('download-bibtex-generated');
+                    if (!downloadBtn) {
+                        downloadBtn = document.createElement('button');
+                        downloadBtn.id = 'download-bibtex-generated';
+                        downloadBtn.textContent = 'Descargar BibTeX';
+                        copyGenerated.parentNode.insertBefore(downloadBtn, copyGenerated.nextSibling);
+                    }
+                    downloadBtn.style.display = 'block';
+                    downloadBtn.onclick = () => downloadBibtex(bibtex);
                 } else {
                     generatedRef.innerHTML = '<span class="error">Tipo no soportado para el estilo seleccionado.</span>';
                 }
@@ -411,6 +512,58 @@ document.addEventListener('DOMContentLoaded', () => {
     const importButton = document.getElementById('import-bib');
     const copyBibButton = document.getElementById('copy-bib');
     let refEntries = [];
+
+    // Agregar input y botón para agregar desde metadata en bibliografía
+    const bibMetadataInput = document.createElement('input');
+    bibMetadataInput.type = 'text';
+    bibMetadataInput.placeholder = 'DOI, ISBN o URL para agregar a la bibliografía';
+    bibMetadataInput.id = 'bib-metadata-input';
+    const addFromMetadataBtn = document.createElement('button');
+    addFromMetadataBtn.textContent = 'Agregar desde Metadata';
+    addFromMetadataBtn.id = 'add-from-metadata';
+    importButton.parentNode.insertBefore(bibMetadataInput, importButton.nextSibling);
+    importButton.parentNode.insertBefore(addFromMetadataBtn, bibMetadataInput.nextSibling);
+
+    addFromMetadataBtn.addEventListener('click', async () => {
+        const input = bibMetadataInput.value.trim();
+        if (!input) return;
+        addFromMetadataBtn.disabled = true;
+        addFromMetadataBtn.textContent = 'Cargando...';
+        try {
+            const { refType, parts } = await fetchMetadata(input);
+            refEntries.push({ type: refType, parts });
+            renderBibEntries();
+        } catch (e) {
+            alert(e.message);
+        } finally {
+            addFromMetadataBtn.disabled = false;
+            addFromMetadataBtn.textContent = 'Agregar desde Metadata';
+        }
+    });
+
+    // Agregar botón para exportar a BibTeX
+    let exportBibtexBtn = document.getElementById('export-bibtex');
+    if (!exportBibtexBtn) {
+        exportBibtexBtn = document.createElement('button');
+        exportBibtexBtn.id = 'export-bibtex';
+        exportBibtexBtn.textContent = 'Exportar a BibTeX';
+        exportButton.parentNode.insertBefore(exportBibtexBtn, exportButton.nextSibling);
+    }
+    exportBibtexBtn.addEventListener('click', () => {
+        let bibtexs = refEntries
+            .filter(entry => validateParts(entry.parts, entry.type))
+            .map(entry => bibtexFormatters[entry.type](entry.parts));
+        const bibContent = bibtexs.join('\n\n');
+        if (bibContent) {
+            const blob = new Blob([bibContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'bibliografia.bib';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    });
 
     function renderBibEntries() {
         bibListContainer.innerHTML = '';
