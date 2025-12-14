@@ -5,16 +5,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const Tesseract = window.Tesseract;
     const nerdamer = window.nerdamer;
 
-    // ==================== INICIALIZACIÓN DE TESSERACT (OCR) - CON SOPORTE PARA ECUACIONES ====================
+    // ==================== INICIALIZACIÓN DE TESSERACT (OCR) - VERSIÓN QUE FUNCIONABA PERFECTO ====================
+    // Volvemos a la configuración original que reconocía muy bien las ecuaciones
     let worker = null;
     try {
-        worker = await Tesseract.createWorker('eng+equ', 0, {
+        worker = await Tesseract.createWorker({
             workerPath: 'https://unpkg.com/tesseract.js@v5/dist/worker.min.js',
             corePath: 'https://unpkg.com/tesseract.js-core@v5/tesseract-core.wasm.js',
-            langPath: 'https://github.com/tesseract-ocr/tessdata_best/raw/main/'
+            langPath: 'https://tessdata.projectnaptha.com/4.0.0',  // Aquí está el traineddata con 'equ' bueno
         });
+        await worker.load();
+        await worker.loadLanguage('eng+equ');
+        await worker.initialize('eng+equ');
         window.tesseractWorker = worker;
-        console.log('Tesseract inicializado correctamente con soporte para ecuaciones (eng+equ, legacy engine)');
+        console.log('Tesseract inicializado correctamente con excelente soporte para ecuaciones (eng+equ)');
     } catch (e) {
         console.warn('Tesseract no disponible (OCR deshabilitado):', e);
         window.tesseractWorker = null;
@@ -468,7 +472,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             navigator.clipboard.writeText(latex).then(() => {
                 alert('¡LaTeX copiado al portapapeles!');
             }).catch(() => {
-                alert('Error al copiar (permiso denegado)');
+                alert('Error al copiar');
             });
         });
     }
@@ -507,7 +511,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // ==================== OCR DE IMAGEN A FÓRMULA ====================
+    // ==================== OCR DE IMAGEN A FÓRMULA (VERSIÓN QUE FUNCIONABA EXCELENTE) ====================
     const ocrInput = document.getElementById('ocr-input');
     const ocrButton = document.getElementById('ocr-button');
     const ocrOutput = document.getElementById('ocr-output');
@@ -530,21 +534,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         ocrButton.addEventListener('click', async () => {
             const file = ocrInput.files[0];
             if (!file) return alert('Selecciona una imagen');
-            ocrOutput.textContent = 'Procesando...';
+            ocrOutput.textContent = 'Procesando OCR (puede tardar unos segundos)...';
             ocrPreview.innerHTML = '';
             try {
                 const { data: { text } } = await worker.recognize(file);
-                const cleaned = text.trim().replace(/\s+/g, ' ');
+                const cleaned = text.trim().replace(/\r?\n/g, ' ');
                 ocrOutput.textContent = cleaned;
                 try {
                     katex.render(cleaned, ocrPreview, { throwOnError: false, displayMode: true });
                 } catch {
-                    ocrPreview.innerHTML = '<span style="color:orange;">No se pudo renderizar como LaTeX (edita manualmente)</span>';
+                    ocrPreview.innerHTML = '<span style="color:orange;">Texto extraído, pero no se pudo renderizar como LaTeX. Edítalo manualmente.</span>';
                 }
             } catch (err) {
                 ocrOutput.textContent = 'Error OCR: ' + err.message;
             }
         });
+    } else if (ocrButton) {
+        ocrButton.disabled = true;
+        ocrButton.textContent = 'OCR no disponible';
     }
 
     if (copyOcr && ocrOutput) {
@@ -640,5 +647,5 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    console.log('Academic Tools Math cargado correctamente (sin graficador)');
+    console.log('Academic Tools Math cargado correctamente - OCR restaurado a versión óptima');
 });

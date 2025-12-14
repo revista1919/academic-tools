@@ -67,10 +67,10 @@ document.addEventListener('DOMContentLoaded', () => {
         'MLA': {
             inText: /\(([^)]+?)\s*(\d+)(?:;\s*[^)]+?\s*\d+)*\)/g,
             ref: /([^,]+?),\s*([^.]+?)\.\s*([^,]+?),\s*(\d{4})\./g,
-            extractInText: cite => cite.replace(/[()]/g, '').trim().split(';').map(c => c.trim()),
+            extractInText: cite => cite.replace(/[()]/g, '').trim().split(';').map(c => c.trim().split(/\s+/)[0]),
             extractRef: ref => {
                 const match = ref.match(/([^,]+?),\s*[^.]+?\.\s*[^,]+?,\s*(\d{4})/);
-                return match ? match[1].trim() + ' ' + match[2] : '';
+                return match ? match[1].trim() : '';
             }
         },
         'Chicago': {
@@ -87,14 +87,14 @@ document.addEventListener('DOMContentLoaded', () => {
             ref: /\[\d+\]\s*([^.]+?),\s*"([^"]+?)",\s*[^,]+?,\s*vol\.\s*\d+,\s*no\.\s*\d+,\s*pp\.\s*\d+-\d+,\s*\w+\.\s*(\d{4})\./gi,
             extractInText: cite => cite.replace(/[\[\]]/g, '').trim(),
             extractRef: ref => {
-                const match = ref.match(/\[\d+\]\s*([^.]+?),\s*"[^"]+?",\s*[^,]+?,\s*vol\.\s*\d+,\s*no\.\s*\d+,\s*pp\.\s*\d+-\d+,\s*\w+\.\s*(\d{4})/i);
-                return match ? match[1].trim() + ' ' + match[2] : '';
+                const match = ref.match(/\[\d+\]/gi);
+                return match ? match[0].replace(/[\[\]]/g, '').trim() : '';
             }
         }
     };
     // Configuración para pdf.js (agregado para corregir el error de compatibilidad con PDF)
-    if (typeof pdfjsLib !== 'undefined') {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.338/pdf.worker.min.js';
+    if (typeof PDFJS !== 'undefined') {
+        PDFJS.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.338/pdf.worker.min.js';
     }
     // Función para guardar en historia
     function saveToHistory(text) {
@@ -155,11 +155,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     saveToHistory(evt.target.result);
                     alert('Archivo cargado. Puedes editar el texto y usar las herramientas de análisis.');
                 };
-            } else if (file.type === 'application/pdf' && typeof pdfjsLib !== 'undefined') {
+            } else if (file.type === 'application/pdf' && typeof PDFJS !== 'undefined') {
                 reader.readAsArrayBuffer(file);
                 reader.onload = async (evt) => {
                     try {
-                        const loadingTask = pdfjsLib.getDocument({ data: evt.target.result });
+                        const loadingTask = PDFJS.getDocument({ data: evt.target.result });
                         const pdf = await loadingTask.promise;
                         let text = '';
                         for (let i = 1; i <= pdf.numPages; i++) {
@@ -364,11 +364,12 @@ document.addEventListener('DOMContentLoaded', () => {
             checkLengthButton?.click();
             const checked = checklistContainer.querySelectorAll('input[type="checkbox"]:checked').length;
             const total = checklistContainer.querySelectorAll('input[type="checkbox"]').length;
+            const checklistBonus = total > 0 ? (checked / total) * 30 : 0;
             const score = 100 -
                 (structureResult.textContent?.includes('sugeridas') ? 15 : 0) -  // Corregido de 'faltantes' a 'sugeridas' para coincidir con el texto generado
                 (inconsistenciesResult.textContent?.match(/(sin|no citadas|duplicadas|sin definición)/g)?.length || 0) * 8 -
                 (lengthResult.textContent?.match(/(corto|largo|Pocas)/g)?.length || 0) * 10 +
-                (checked / total) * 30;
+                checklistBonus;
             const finalScore = Math.max(0, Math.round(score));
             reportOutput.innerHTML = `
                 <h3>Reporte de Revisión (Adaptado a Ensayos y Papers)</h3>
