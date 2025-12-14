@@ -5,19 +5,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const Chart = window.Chart;
     const Tesseract = window.Tesseract;
     const ComputeEngine = window.ComputeEngine;
+    const nerdamer = window.nerdamer; // Para resolver ecuaciones simbólicamente
 
-    // ==================== INICIALIZACIÓN DE TESSERACT (OCR) - CORREGIDO PARA V5 ====================
+    // ==================== INICIALIZACIÓN DE TESSERACT (OCR) - CORREGIDO PARA ECUACIONES ====================
+    // Usamos OEM 0 (legacy engine) para evitar error LSTM con 'equ'. Esto permite math recognition sin problemas.
+    // langPath apunta a tessdata_best para mejor precisión en equ.
     let worker = null;
     try {
-        // En v5, createWorker toma lang como primer arg, OEM como segundo, options como tercero
-        // No se necesita loadLanguage ni initialize
-        worker = await Tesseract.createWorker('eng+equ', 1, {
-            langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+        worker = await Tesseract.createWorker('eng+equ', 0, {  // OEM 0 = legacy engine (sin LSTM)
+            workerPath: 'https://unpkg.com/tesseract.js@v5/dist/worker.min.js',
             corePath: 'https://unpkg.com/tesseract.js-core@v5/tesseract-core.wasm.js',
-            workerPath: 'https://unpkg.com/tesseract.js@v5/dist/worker.min.js'
+            langPath: 'https://github.com/tesseract-ocr/tessdata_best/raw/main/'  // tessdata_best para mejor precisión
         });
         window.tesseractWorker = worker;
-        console.log('Tesseract inicializado correctamente con soporte para ecuaciones (eng+equ)');
+        console.log('Tesseract inicializado correctamente con soporte para ecuaciones (eng+equ, legacy engine)');
     } catch (e) {
         console.warn('Tesseract no disponible (OCR deshabilitado):', e);
         window.tesseractWorker = null;
@@ -643,21 +644,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // ==================== SOLUCIONADOR DE ECUACIONES ====================
+    // ==================== SOLUCIONADOR DE ECUACIONES - MEJORADO CON NERDAMER ====================
     const equationInput = document.getElementById('equation-input');
     const solveButton = document.getElementById('solve-equation');
     const equationResult = document.getElementById('equation-result');
 
-    if (solveButton && equationResult && math) {
+    if (solveButton && equationResult && nerdamer) {
         solveButton.addEventListener('click', () => {
             const expr = equationInput?.value.trim();
             if (!expr) {
-                equationResult.textContent = 'Escribe una expresión matemática (ej: 2+2, sin(pi))';
+                equationResult.textContent = 'Escribe una ecuación o expresión (ej: x^2 - 4 = 0, sin(x))';
                 return;
             }
+
             try {
-                const result = math.evaluate(expr);
-                equationResult.innerHTML = `<strong>${result.toString()}</strong>`;
+                // Intentar resolver como ecuación simbólica con nerdamer
+                const solution = nerdamer.solve(expr, 'x');  // Asume variable 'x' por default
+                if (solution === undefined || solution.toString() === 'false') {
+                    // Si no resuelve como ecuación, evaluar como expresión numérica con math.js
+                    const result = math.evaluate(expr);
+                    equationResult.innerHTML = `<strong>Evaluación: ${result.toString()}</strong><br><small>(No es ecuación resoluble simbólicamente)</small>`;
+                } else {
+                    equationResult.innerHTML = `<strong>Solución: ${solution.toString()}</strong>`;
+                }
             } catch (e) {
                 equationResult.textContent = `Error: ${e.message}`;
             }
@@ -705,87 +714,76 @@ document.addEventListener('DOMContentLoaded', async () => {
                 xValues.push(xMin + i * step);
             }
 
-            const ce = new ComputeEngine.ComputeEngine({ numericPrecision: 20 });
+            const ce = new ComputeEngine.ComputeEngine();
             const datasets = [];
             const colors = ['#007bff', '#dc3545', '#28a745', '#ffc107', '#6f42c1', '#fd7e14', '#20c997'];
+
+            let validFunctions = false;
 
             functions.forEach((func, idx) => {
                 let expr;
                 try {
-                    expr = ce.parse(func, { canonical: false });
+                    expr = ce.parse(func);
                 } catch (e) {
-                    console.warn(`Error parseando "${func}":`, e);
-                    alert(`Error al parsear "${func}": ${e.message}`);
+                    alert(`Error parseando "${func}": ${e.message}`);
                     return;
                 }
 
-                const yValues = xValues.map(x => {
+                const data = [];
+                let hasPoints = false;
+
+                xValues.forEach(x => {
                     try {
                         const val = expr.evaluate({ x: ce.number(x) });
                         const num = val.numericValue;
-                        return isFinite(num) && !isNaN(num) ? num : null;
+                        if (isFinite(num)) {
+                            data.push({ x, y: num });
+                            hasPoints = true;
+                        } else {
+                            data.push({ x, y: null });
+                        }
                     } catch {
-                        return null;
+                        data.push({ x, y: null });
                     }
                 });
 
-                if (yValues.some(y => y !== null)) {
+                if (hasPoints) {
                     datasets.push({
-                        label: func || `f${idx + 1}`,
-                        data: yValues.map((y, i) => ({ x: xValues[i], y })),
+                        label: func,
+                        data,
                         borderColor: colors[idx % colors.length],
-                        backgroundColor: colors[idx % colors.length] + '20',
+                        backgroundColor: colors[idx % colors.length] + '40',
                         fill: false,
                         tension: 0.1,
-                        pointRadius: 0,
-                        showLine: true
+                        pointRadius: 0
                     });
+                    validFunctions = true;
                 }
             });
 
-            if (datasets.length === 0) {
-                alert('No se pudieron graficar funciones válidas');
+            if (!validFunctions) {
+                alert('No se pudieron generar puntos válidos para ninguna función. Revisa la sintaxis (ej: sin(x), x^2)');
                 return;
             }
 
-            if (chartInstance) {
-                chartInstance.destroy();
-            }
+            if (chartInstance) chartInstance.destroy();
 
-            const ctx = plotCanvas.getContext('2d');
-            chartInstance = new Chart(ctx, {
+            chartInstance = new Chart(plotCanvas, {
                 type: 'line',
                 data: { datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
                     scales: {
-                        x: {
-                            type: 'linear',
-                            position: 'bottom',
-                            title: { display: true, text: 'x' },
-                            min: xMin,
-                            max: xMax
-                        },
-                        y: {
-                            title: { display: true, text: 'y' }
-                        }
+                        x: { type: 'linear', title: { display: true, text: 'x' }, min: xMin, max: xMax },
+                        y: { title: { display: true, text: 'y' } }
                     },
                     plugins: {
-                        title: { display: true, text: 'Gráfica de Funciones' },
-                        legend: { display: true, position: 'top' },
-                        zoom: {
-                            zoom: {
-                                wheel: { enabled: true },
-                                pinch: { enabled: true },
-                                mode: 'xy'
-                            },
-                            pan: { enabled: true, mode: 'xy' }
-                        }
+                        title: { display: true, text: 'Gráfica de funciones' },
+                        legend: { display: true },
+                        zoom: { zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' }, pan: { enabled: true, mode: 'xy' } }
                     }
-                },
-                plugins: [ChartZoom] // Asumiendo que chartjs-plugin-zoom está registrado globalmente
+                }
             });
         });
 
@@ -794,5 +792,5 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    console.log('Academic Tools Math cargado correctamente');
+    console.log('Academic Tools Math cargado correctamente - Versión completa con solver y OCR math');
 });

@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Herramientas de Matemáticas y Ciencia Gratuitas - Academic Tools</title>
-    <meta name="description" content="Render LaTeX en tiempo real, fórmula a imagen, OCR de imágenes a fórmula, reconocimiento de escritura a mano, conversor de unidades, solucionador de ecuaciones y graficador de funciones. Procesado local.">
-    <meta name="keywords" content="render latex online, ocr math, handwriting math, editor ecuaciones, conversor unidades, solucionador ecuaciones, graficador funciones, herramientas para investigadores">
+    <meta name="description" content="Render LaTeX en tiempo real, fórmula a imagen, OCR de imágenes a fórmula, conversor de unidades, solucionador de ecuaciones y graficador de funciones. Procesado local.">
+    <meta name="keywords" content="render latex online, ocr math, editor ecuaciones, conversor unidades, solucionador ecuaciones, graficador funciones, herramientas para investigadores">
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
@@ -17,6 +17,8 @@
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/mathlive"></script>
     <script src="https://cdn.jsdelivr.net/npm/@cortex-js/compute-engine@0.20.0/dist/compute-engine.min.js"></script>
+    <!-- Nerdamer para resolver ecuaciones simbólicamente -->
+    <script src="https://cdn.jsdelivr.net/npm/nerdamer@latest/all.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -218,8 +220,8 @@
         </section>
         <section>
             <h2>Solucionador de Ecuaciones</h2>
-            <p>Resuelve expresiones matemáticas, ecuaciones, etc. Ej: 2*x^2 - 4 = 0, sin(pi)</p>
-            <textarea id="equation-input" placeholder="Escribe expresión..."></textarea>
+            <p>Resuelve ecuaciones simbólicamente (ej: x^2 - 4 = 0) o evalúa expresiones (ej: sin(pi)). Usa variable 'x' por default.</p>
+            <textarea id="equation-input" placeholder="Escribe ecuación... (ej: x^2 - 4 = 0)"></textarea>
             <button id="solve-equation">Resolver</button>
             <div id="equation-result"></div>
         </section>
